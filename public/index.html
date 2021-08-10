@@ -1,17 +1,12 @@
 <html>
   <head>
-
     <script type="module" src="/lib/micropuzzle-components.esm.js"></script>
-
   </head>
   <body>
     <h1>Test</h1>
     <micro-puzzle-element name="content">
-      {{.Reader.Load "http://localhost:5001"}}
+    {{.Reader.Load "http://localhost:5001" "content"}}
     </micro-puzzle-element>
-    <micro-puzzle-element name="footer">
-        {{.Reader.Load "http://localhost:5000"}}
-    </micro-puzzle-element>
-       <micro-puzzle-element name="footer">moin</micro-puzzle-element>
+    {{.Reader.Load "http://localhost:5000" "footer"}}
   </body>
 </html>

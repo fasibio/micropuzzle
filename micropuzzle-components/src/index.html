@@ -9,6 +9,27 @@
     <script nomodule src="/build/micropuzzle-components.js"></script>
   </head>
   <body>
-    <my-component first="Stencil" last="'Don't call me a framework' JS"></my-component>
+    <h1>before</h1>
+    <micro-puzzle-element name="footer">
+      <template>
+        <style>
+          h1 {
+            color: red;
+          }
+        </style>
+        <h1>middle</h1>
+      </template>
+    </micro-puzzle-element>
+    <micro-puzzle-element name="footer1">
+      <template>
+        <style>
+          h1 {
+            color: blue;
+          }
+        </style>
+        <h1>middle 2</h1>
+      </template>
+    </micro-puzzle-element>
+    <h1>after</h1>
   </body>
 </html>

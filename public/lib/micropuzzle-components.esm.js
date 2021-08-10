@@ -1,1 +1,0 @@
-import{p as e,b as m}from"./p-72348246.js";(()=>{const m=import.meta.url,p={};return""!==m&&(p.resourcesUrl=new URL(".",m).href),e(p)})().then((e=>m([["p-e92fdffd",[[1,"micro-puzzle-element",{name:[1]}]]]],e)));

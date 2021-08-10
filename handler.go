@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/fasibio/micropuzzle/logger"
@@ -27,11 +28,11 @@ type Reader struct {
 	mainRequest *http.Request
 }
 
-func (r Reader) Load(url string) string {
+func (r Reader) Load(url, content string) string {
 	logger.Get().Infow("load", "dest", url)
 	result, err := r.proxy.Get(url, r.mainRequest)
 	if err != nil {
 		logger.Get().Warnw("error by load url", "url", url, "error", err)
 	}
-	return string(result)
+	return fmt.Sprintf("<micro-puzzle-element name=\"%s\"><template>%s</template></micro-puzzle-element>", content, string(result))
 }
