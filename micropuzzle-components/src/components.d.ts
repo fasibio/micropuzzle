@@ -9,6 +9,8 @@ export namespace Components {
     interface MicroPuzzleElement {
         "name": string;
     }
+    interface MicroPuzzleLoader {
+    }
 }
 declare global {
     interface HTMLMicroPuzzleElementElement extends Components.MicroPuzzleElement, HTMLStencilElement {
@@ -17,16 +19,26 @@ declare global {
         prototype: HTMLMicroPuzzleElementElement;
         new (): HTMLMicroPuzzleElementElement;
     };
+    interface HTMLMicroPuzzleLoaderElement extends Components.MicroPuzzleLoader, HTMLStencilElement {
+    }
+    var HTMLMicroPuzzleLoaderElement: {
+        prototype: HTMLMicroPuzzleLoaderElement;
+        new (): HTMLMicroPuzzleLoaderElement;
+    };
     interface HTMLElementTagNameMap {
         "micro-puzzle-element": HTMLMicroPuzzleElementElement;
+        "micro-puzzle-loader": HTMLMicroPuzzleLoaderElement;
     }
 }
 declare namespace LocalJSX {
     interface MicroPuzzleElement {
         "name"?: string;
     }
+    interface MicroPuzzleLoader {
+    }
     interface IntrinsicElements {
         "micro-puzzle-element": MicroPuzzleElement;
+        "micro-puzzle-loader": MicroPuzzleLoader;
     }
 }
 export { LocalJSX as JSX };
@@ -34,6 +46,7 @@ declare module "@stencil/core" {
     export namespace JSX {
         interface IntrinsicElements {
             "micro-puzzle-element": LocalJSX.MicroPuzzleElement & JSXBase.HTMLAttributes<HTMLMicroPuzzleElementElement>;
+            "micro-puzzle-loader": LocalJSX.MicroPuzzleLoader & JSXBase.HTMLAttributes<HTMLMicroPuzzleLoaderElement>;
         }
     }
 }

@@ -13,6 +13,9 @@ export class MicroPuzzleElement {
     const result = this.el.getElementsByTagName("template")[0]
     const templateContent = result.content
     this.el.attachShadow({mode: 'open'}).appendChild(templateContent.cloneNode(true))
+    this.el.addEventListener("TEST",(obj:CustomEvent) => {
+      console.log(obj.detail)
+    })
   }
 
   render() {
