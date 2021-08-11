@@ -1,4 +1,5 @@
-import { Component, Host, h, Prop, Element,  } from '@stencil/core';
+import { Component, Host, h, Prop, Element, Listen } from '@stencil/core';
+import {NewContentEventDetails} from '../../utils/utils'
 
 @Component({
   tag: 'micro-puzzle-element',
@@ -9,13 +10,21 @@ export class MicroPuzzleElement {
   @Element() el: HTMLElement;
   @Prop() name: string
 
+  @Listen("test1234", {target: "window"})
+  eventUpdated(event: CustomEvent<NewContentEventDetails>){
+    if (event.detail.name === this.name){
+      console.log('hier', event.detail.content)
+      event.preventDefault()
+    } else {
+      console.log('event nicht für mich')
+    }
+
+  }
+
   componentDidRender(){
     const result = this.el.getElementsByTagName("template")[0]
     const templateContent = result.content
     this.el.attachShadow({mode: 'open'}).appendChild(templateContent.cloneNode(true))
-    this.el.addEventListener("TEST",(obj:CustomEvent) => {
-      console.log(obj.detail)
-    })
   }
 
   render() {

@@ -5,6 +5,7 @@
  * It contains typing information for all components that exist in this project.
  */
 import { HTMLStencilElement, JSXBase } from "@stencil/core/internal";
+import { NewContentEventDetails } from "./utils/utils";
 export namespace Components {
     interface MicroPuzzleElement {
         "name": string;
@@ -35,6 +36,7 @@ declare namespace LocalJSX {
         "name"?: string;
     }
     interface MicroPuzzleLoader {
+        "onTest1234"?: (event: CustomEvent<NewContentEventDetails>) => void;
     }
     interface IntrinsicElements {
         "micro-puzzle-element": MicroPuzzleElement;
