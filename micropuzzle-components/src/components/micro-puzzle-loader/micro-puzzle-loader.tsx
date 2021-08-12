@@ -10,16 +10,16 @@ import {NewContentEventDetails} from '../../utils/utils'
 export class MicroPuzzleLoader {
   @Element() el: HTMLElement;
   @Event({
-    eventName: "test1234",
+    eventName: 'new-content',
     bubbles: true,
     composed: true,
     cancelable: true
-  }) testEvent: EventEmitter<NewContentEventDetails>
+  }) newContentEvent: EventEmitter<NewContentEventDetails>
 
   constructor(){
     setInterval(() => {
       console.log('send event')
-      this.testEvent.emit({
+      this.newContentEvent.emit({
         content: "<h2>lalal</h2>",
         name: "footer"
       })

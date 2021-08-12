@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"text/template"
+	"time"
 
 	"github.com/fasibio/micropuzzle/logger"
 	"github.com/go-chi/chi"
@@ -62,22 +63,26 @@ func ChiFileServer(r chi.Router, path string, root http.FileSystem) {
 				logger.Get().Warnw("Error handle template", "error", err)
 			}
 		} else {
-			logger.Get().Info("Will return Fallback ", path)
-			f, err = root.Open("/index.html")
-			handleTemplate(f, w, r)
-			if err != nil {
-				logger.Get().Error("Error by return fallback ", err)
-			}
+			w.WriteHeader(http.StatusNotFound)
+			// logger.Get().Info("Will return Fallback ", path)
+			// f, err = root.Open("/index.html")
+			// handleTemplate(f, w, r)
+			// if err != nil {
+			// 	logger.Get().Error("Error by return fallback ", err)
+			// }
 		}
 	})
 }
 
 func handleTemplate(f http.File, dst io.Writer, r *http.Request) error {
+
+	var maxLoadingTime time.Duration = 45 * time.Millisecond
+
 	text, err := io.ReadAll(f)
 	if err != nil {
 		return err
 	}
-	handler := NewTemplateHandler(r)
+	handler := NewTemplateHandler(r, maxLoadingTime)
 	tmpl, err := template.New("httptemplate").Parse(string(text))
 	if err != nil {
 		return err

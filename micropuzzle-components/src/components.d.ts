@@ -36,7 +36,7 @@ declare namespace LocalJSX {
         "name"?: string;
     }
     interface MicroPuzzleLoader {
-        "onTest1234"?: (event: CustomEvent<NewContentEventDetails>) => void;
+        "onNew-content"?: (event: CustomEvent<NewContentEventDetails>) => void;
     }
     interface IntrinsicElements {
         "micro-puzzle-element": MicroPuzzleElement;

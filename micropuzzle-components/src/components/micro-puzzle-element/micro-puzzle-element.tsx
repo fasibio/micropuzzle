@@ -10,7 +10,7 @@ export class MicroPuzzleElement {
   @Element() el: HTMLElement;
   @Prop() name: string
 
-  @Listen("test1234", {target: "window"})
+  @Listen('new-content', {target: "window"})
   eventUpdated(event: CustomEvent<NewContentEventDetails>){
     if (event.detail.name === this.name){
       console.log('hier', event.detail.content)
