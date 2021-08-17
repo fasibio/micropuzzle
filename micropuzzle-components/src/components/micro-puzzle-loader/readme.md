@@ -5,6 +5,13 @@
 <!-- Auto Generated Below -->
 
 
+## Properties
+
+| Property             | Attribute              | Description | Type     | Default     |
+| -------------------- | ---------------------- | ----------- | -------- | ----------- |
+| `streamRegisterName` | `stream-register-name` |             | `string` | `undefined` |
+
+
 ## Events
 
 | Event         | Description | Type                                              |

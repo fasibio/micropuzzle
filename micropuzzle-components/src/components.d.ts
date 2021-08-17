@@ -7,13 +7,22 @@
 import { HTMLStencilElement, JSXBase } from "@stencil/core/internal";
 import { NewContentEventDetails } from "./utils/utils";
 export namespace Components {
+    interface MicroPuzzleAsyncElement {
+    }
     interface MicroPuzzleElement {
         "name": string;
     }
     interface MicroPuzzleLoader {
+        "streamRegisterName": string;
     }
 }
 declare global {
+    interface HTMLMicroPuzzleAsyncElementElement extends Components.MicroPuzzleAsyncElement, HTMLStencilElement {
+    }
+    var HTMLMicroPuzzleAsyncElementElement: {
+        prototype: HTMLMicroPuzzleAsyncElementElement;
+        new (): HTMLMicroPuzzleAsyncElementElement;
+    };
     interface HTMLMicroPuzzleElementElement extends Components.MicroPuzzleElement, HTMLStencilElement {
     }
     var HTMLMicroPuzzleElementElement: {
@@ -27,18 +36,23 @@ declare global {
         new (): HTMLMicroPuzzleLoaderElement;
     };
     interface HTMLElementTagNameMap {
+        "micro-puzzle-async-element": HTMLMicroPuzzleAsyncElementElement;
         "micro-puzzle-element": HTMLMicroPuzzleElementElement;
         "micro-puzzle-loader": HTMLMicroPuzzleLoaderElement;
     }
 }
 declare namespace LocalJSX {
+    interface MicroPuzzleAsyncElement {
+    }
     interface MicroPuzzleElement {
         "name"?: string;
     }
     interface MicroPuzzleLoader {
         "onNew-content"?: (event: CustomEvent<NewContentEventDetails>) => void;
+        "streamRegisterName"?: string;
     }
     interface IntrinsicElements {
+        "micro-puzzle-async-element": MicroPuzzleAsyncElement;
         "micro-puzzle-element": MicroPuzzleElement;
         "micro-puzzle-loader": MicroPuzzleLoader;
     }
@@ -47,6 +61,7 @@ export { LocalJSX as JSX };
 declare module "@stencil/core" {
     export namespace JSX {
         interface IntrinsicElements {
+            "micro-puzzle-async-element": LocalJSX.MicroPuzzleAsyncElement & JSXBase.HTMLAttributes<HTMLMicroPuzzleAsyncElementElement>;
             "micro-puzzle-element": LocalJSX.MicroPuzzleElement & JSXBase.HTMLAttributes<HTMLMicroPuzzleElementElement>;
             "micro-puzzle-loader": LocalJSX.MicroPuzzleLoader & JSXBase.HTMLAttributes<HTMLMicroPuzzleLoaderElement>;
         }

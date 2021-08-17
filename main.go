@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"log"
 	"mime"
 	"net/http"
 	"path/filepath"
@@ -11,7 +12,16 @@ import (
 	"github.com/fasibio/micropuzzle/logger"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	socketio "github.com/googollee/go-socket.io"
+	"github.com/googollee/go-socket.io/engineio"
+	"github.com/googollee/go-socket.io/engineio/transport"
+	"github.com/googollee/go-socket.io/engineio/transport/polling"
+	"github.com/googollee/go-socket.io/engineio/transport/websocket"
 )
+
+var allowOriginFunc = func(r *http.Request) bool {
+	return true
+}
 
 func main() {
 	logger.Initialize("info")
@@ -19,6 +29,25 @@ func main() {
 	r.Use(middleware.Compress(5, "gzip"))
 
 	ChiFileServer(r, "/", http.Dir("./public"))
+
+	server := socketio.NewServer(&engineio.Options{
+		Transports: []transport.Transport{
+			&polling.Transport{
+				CheckOrigin: allowOriginFunc,
+			},
+			&websocket.Transport{
+				CheckOrigin: allowOriginFunc,
+			},
+		},
+	})
+	defer server.Close()
+	server.OnConnect("/", func(s socketio.Conn) error {
+		s.SetContext("")
+		log.Println("connected:", s.ID())
+		return nil
+	})
+	r.Handle("/stream", server)
+
 	logger.Get().Infow("Start Server on Port :3000")
 	logger.Get().Fatal(http.ListenAndServe(":3000", r))
 }
@@ -82,7 +111,11 @@ func handleTemplate(f http.File, dst io.Writer, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	handler := NewTemplateHandler(r, maxLoadingTime)
+	cache := NewInMemoryHandler()
+	handler, err := NewTemplateHandler(r, maxLoadingTime, &cache)
+	if err != nil {
+		return err
+	}
 	tmpl, err := template.New("httptemplate").Parse(string(text))
 	if err != nil {
 		return err

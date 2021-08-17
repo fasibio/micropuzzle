@@ -5,7 +5,7 @@ services:
     ports:
       - "5000:80"
     volumes:
-      - ./externalServices/footer:/usr/share/nginx/html
+      - ./externalServices/footer:/usr/share/nginx/html:Z
   content:
     build: "./externalServices/content"
     ports:

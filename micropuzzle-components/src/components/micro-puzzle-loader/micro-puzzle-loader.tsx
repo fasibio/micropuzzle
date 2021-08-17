@@ -1,4 +1,4 @@
-import { Component, Host, h, Element, Event, EventEmitter } from '@stencil/core';
+import { Component, Host, h, Element, Event, EventEmitter, Prop } from '@stencil/core';
 
 import {NewContentEventDetails} from '../../utils/utils'
 
@@ -16,6 +16,7 @@ export class MicroPuzzleLoader {
     cancelable: true
   }) newContentEvent: EventEmitter<NewContentEventDetails>
 
+  @Prop() streamRegisterName: string
   constructor(){
     setInterval(() => {
       console.log('send event')

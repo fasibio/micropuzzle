@@ -3,6 +3,7 @@
     <script type="module" src="/lib/micropuzzle-components.esm.js"></script>
   </head>
   <body>
+    {{.Loader}}
     <h1>Test</h1>
     {{.Reader.Load "http://localhost:5001" "content"}}
     {{.Reader.Load "http://localhost:5000" "footer"}}
