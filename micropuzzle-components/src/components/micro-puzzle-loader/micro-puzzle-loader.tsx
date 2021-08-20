@@ -1,6 +1,7 @@
 import { Component, Host, h, Element, Event, EventEmitter, Prop } from '@stencil/core';
 
 import {NewContentEventDetails} from '../../utils/utils'
+import io from "socket.io-client";
 
 
 @Component({
@@ -16,20 +17,40 @@ export class MicroPuzzleLoader {
     cancelable: true
   }) newContentEvent: EventEmitter<NewContentEventDetails>
 
-  @Prop() streamRegisterName: string
+  @Prop() streamregistername: string
+  @Prop() streamingurl: string
+
+  private socket: SocketIOClient.Socket;
   constructor(){
-    setInterval(() => {
-      console.log('send event')
+    this.socket =  io({
+      query: `streamId=${this.streamregistername}`
+    })
+    this.socket.on("NEW_CONTENT", (data: {key: string, value: string}) => {
       this.newContentEvent.emit({
-        content: "<h2>lalal</h2>",
-        name: "footer"
+        content: data.value,
+        name:data.key
       })
-    }, 3000)
+    })
+   
+    // setInterval(() => {
+    //   console.log('send event')
+    //   this.newContentEvent.emit({
+    //     content: "<h2>lalal</h2>",
+    //     name: "footer"
+    //   })
+    // }, 3000)
+  }
+  do = () =>{
+    const res = this.socket.emit('notice', "test");
+    console.log(res)
   }
 
   render() {
+    console.log('da', this.streamregistername)
     return (
-      <Host />
+      <Host >
+        <button onClick={this.do}></button>
+      </Host>
     );
   }
 

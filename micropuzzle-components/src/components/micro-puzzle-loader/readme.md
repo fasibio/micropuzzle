@@ -7,9 +7,10 @@
 
 ## Properties
 
-| Property             | Attribute              | Description | Type     | Default     |
-| -------------------- | ---------------------- | ----------- | -------- | ----------- |
-| `streamRegisterName` | `stream-register-name` |             | `string` | `undefined` |
+| Property             | Attribute            | Description | Type     | Default     |
+| -------------------- | -------------------- | ----------- | -------- | ----------- |
+| `streamingurl`       | `streamingurl`       |             | `string` | `undefined` |
+| `streamregistername` | `streamregistername` |             | `string` | `undefined` |
 
 
 ## Events

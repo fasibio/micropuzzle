@@ -9,22 +9,22 @@ import {NewContentEventDetails} from '../../utils/utils'
 export class MicroPuzzleElement {
   @Element() el: HTMLElement;
   @Prop() name: string
+  element: ShadowRoot
+
 
   @Listen('new-content', {target: "window"})
   eventUpdated(event: CustomEvent<NewContentEventDetails>){
     if (event.detail.name === this.name){
-      console.log('hier', event.detail.content)
+      this.element.innerHTML =event.detail.content 
       event.preventDefault()
-    } else {
-      console.log('event nicht für mich')
     }
-
   }
 
   componentDidRender(){
     const result = this.el.getElementsByTagName("template")[0]
     const templateContent = result.content
-    this.el.attachShadow({mode: 'open'}).appendChild(templateContent.cloneNode(true))
+    this.element = this.el.attachShadow({mode: 'open'})
+    this.element.appendChild(templateContent.cloneNode(true))
   }
 
   render() {

@@ -12,6 +12,7 @@ import (
 	"github.com/fasibio/micropuzzle/logger"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/gofrs/uuid"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/googollee/go-socket.io/engineio"
 	"github.com/googollee/go-socket.io/engineio/transport"
@@ -23,12 +24,26 @@ var allowOriginFunc = func(r *http.Request) bool {
 	return true
 }
 
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		allowHeaders := "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, PUT, PATCH, GET, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Headers", allowHeaders)
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	logger.Initialize("info")
 	r := chi.NewRouter()
 	r.Use(middleware.Compress(5, "gzip"))
-
-	ChiFileServer(r, "/", http.Dir("./public"))
+	cache := NewInMemoryHandler()
 
 	server := socketio.NewServer(&engineio.Options{
 		Transports: []transport.Transport{
@@ -40,13 +55,50 @@ func main() {
 			},
 		},
 	})
-	defer server.Close()
 	server.OnConnect("/", func(s socketio.Conn) error {
+		url := s.URL()
+		id := url.Query().Get("streamId")
+		server.JoinRoom("/", id, s)
+		values, err := cache.GetAllValuesForSession(id)
+		if err != nil {
+			log.Println(err)
+		}
+		for _, v := range values {
+			server.BroadcastToRoom("/", id, "NEW_CONTENT", NewContentPayload{Key: v.Content, Value: string(v.Value)})
+		}
+		log.Println(id)
 		s.SetContext("")
 		log.Println("connected:", s.ID())
 		return nil
 	})
-	r.Handle("/stream", server)
+
+	server.OnEvent("/", "notice", func(s socketio.Conn, msg string) {
+		log.Println("notice:", msg)
+		s.Emit("reply", "have "+msg)
+	})
+
+	server.OnError("/", func(s socketio.Conn, e error) {
+		log.Println("meet error:", e)
+	})
+
+	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
+		server.LeaveAllRooms("/", s)
+		log.Println("closed", reason)
+	})
+
+	go func() {
+		if err := server.Serve(); err != nil {
+			log.Fatalf("socketio listen error: %s\n", err)
+		}
+	}()
+	defer server.Close()
+
+	r.Handle("/socket.io/", server)
+	f := FileHandler{
+		server: server,
+		cache:  &cache,
+	}
+	f.ChiFileServer(r, "/", http.Dir("./public"))
 
 	logger.Get().Infow("Start Server on Port :3000")
 	logger.Get().Fatal(http.ListenAndServe(":3000", r))
@@ -72,7 +124,12 @@ func mimeTypeForFile(file string) string {
 	}
 }
 
-func ChiFileServer(r chi.Router, path string, root http.FileSystem) {
+type FileHandler struct {
+	server *socketio.Server
+	cache  ChacheHandler
+}
+
+func (filehandler *FileHandler) ChiFileServer(r chi.Router, path string, root http.FileSystem) {
 
 	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
@@ -87,7 +144,7 @@ func ChiFileServer(r chi.Router, path string, root http.FileSystem) {
 				io.Copy(w, f)
 				return
 			}
-			err := handleTemplate(f, w, r)
+			err := filehandler.handleTemplate(f, w, r)
 			if err != nil {
 				logger.Get().Warnw("Error handle template", "error", err)
 			}
@@ -103,7 +160,7 @@ func ChiFileServer(r chi.Router, path string, root http.FileSystem) {
 	})
 }
 
-func handleTemplate(f http.File, dst io.Writer, r *http.Request) error {
+func (filehandler *FileHandler) handleTemplate(f http.File, dst io.Writer, r *http.Request) error {
 
 	var maxLoadingTime time.Duration = 45 * time.Millisecond
 
@@ -111,8 +168,12 @@ func handleTemplate(f http.File, dst io.Writer, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	cache := NewInMemoryHandler()
-	handler, err := NewTemplateHandler(r, maxLoadingTime, &cache)
+	id, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
+
+	handler, err := NewTemplateHandler(r, maxLoadingTime, filehandler.cache, "http://localhost:3000", id, filehandler.server)
 	if err != nil {
 		return err
 	}

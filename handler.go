@@ -2,28 +2,26 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/fasibio/micropuzzle/logger"
 	"github.com/fasibio/micropuzzle/proxy"
 	"github.com/gofrs/uuid"
+	socketio "github.com/googollee/go-socket.io"
 )
 
-func NewTemplateHandler(r *http.Request, timeout time.Duration, cache ChacheHandler) (*TemplateHandler, error) {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+func NewTemplateHandler(r *http.Request, timeout time.Duration, cache ChacheHandler, socketUrl string, id uuid.UUID, server *socketio.Server) (*TemplateHandler, error) {
+
 	return &TemplateHandler{
-		Loader: fmt.Sprintf("<micro-puzzle-loader streamRegisterName=\"%s\"></micro-puzzle-loader>", id),
+		Loader: fmt.Sprintf("<micro-puzzle-loader streamingUrl=\"%s\" streamRegisterName=\"%s\"></micro-puzzle-loader>", socketUrl, id),
 		Reader: Reader{
 			requestId:   id,
 			cache:       cache,
 			timeout:     timeout,
 			mainRequest: r,
 			proxy:       proxy.Proxy{},
+			server:      server,
 		},
 	}, nil
 }
@@ -34,6 +32,7 @@ type TemplateHandler struct {
 }
 
 type Reader struct {
+	server      *socketio.Server
 	cache       ChacheHandler
 	timeout     time.Duration
 	proxy       proxy.Proxy
@@ -42,7 +41,6 @@ type Reader struct {
 }
 
 func (r *Reader) Load(url, content string) string {
-	log.Println("nanan", content)
 	resultChan := make(chan string, 1)
 	timeout := make(chan bool, 1)
 	timeoutBubble := make(chan bool, 1)
@@ -60,13 +58,17 @@ func (r *Reader) Load(url, content string) string {
 	case <-timeout:
 		{
 			timeoutBubble <- true
-			return "<h1>Fallback</h1>"
+			return fmt.Sprintf("<micro-puzzle-element name=\"%s\"><template>%s</template></micro-puzzle-element>", content, "<h1>Fallback</h1>")
 		}
 	}
 }
 
+type NewContentPayload struct {
+	Key   string `json:"key,omitempty"`
+	Value string `json:"value,omitempty"`
+}
+
 func (r *Reader) loadAsync(url string, content string, result *chan string, timeout *chan bool) {
-	logger.Get().Infow("load", "dest", url)
 	res, err := r.proxy.Get(url, r.mainRequest)
 
 	if err != nil {
@@ -74,12 +76,15 @@ func (r *Reader) loadAsync(url string, content string, result *chan string, time
 		return
 	}
 
-	log.Println("result", content, len(*timeout))
 	contentPage := fmt.Sprintf("<micro-puzzle-element name=\"%s\"><template>%s</template></micro-puzzle-element>", content, string(res))
 	if len(*timeout) == 1 {
-		err := r.cache.add(fmt.Sprintf("%v_%s", r.requestId, content), []byte(contentPage))
-		if err != nil {
-			logger.Get().Warnw("error by saving to cache", "error", err)
+		if r.server.RoomLen("", r.requestId.String()) > 0 {
+			r.server.BroadcastToRoom("/", r.requestId.String(), "NEW_CONTENT", NewContentPayload{Key: content, Value: string(res)})
+		} else {
+			err := r.cache.Add(r.requestId.String(), content, []byte(contentPage))
+			if err != nil {
+				logger.Get().Warnw("error by saving to cache", "error", err)
+			}
 		}
 	} else {
 		*result <- contentPage
