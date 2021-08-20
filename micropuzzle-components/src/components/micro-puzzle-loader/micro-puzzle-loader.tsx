@@ -32,24 +32,12 @@ export class MicroPuzzleLoader {
       })
     })
    
-    // setInterval(() => {
-    //   console.log('send event')
-    //   this.newContentEvent.emit({
-    //     content: "<h2>lalal</h2>",
-    //     name: "footer"
-    //   })
-    // }, 3000)
-  }
-  do = () =>{
-    const res = this.socket.emit('notice', "test");
-    console.log(res)
   }
 
   render() {
     console.log('da', this.streamregistername)
     return (
       <Host >
-        <button onClick={this.do}></button>
       </Host>
     );
   }
