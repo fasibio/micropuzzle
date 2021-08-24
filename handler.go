@@ -8,10 +8,9 @@ import (
 	"github.com/fasibio/micropuzzle/logger"
 	"github.com/fasibio/micropuzzle/proxy"
 	"github.com/gofrs/uuid"
-	socketio "github.com/googollee/go-socket.io"
 )
 
-func NewTemplateHandler(r *http.Request, timeout time.Duration, cache ChacheHandler, socketUrl string, id uuid.UUID, server *socketio.Server) (*TemplateHandler, error) {
+func NewTemplateHandler(r *http.Request, timeout time.Duration, cache ChacheHandler, socketUrl string, id uuid.UUID, server *SocketHandler) (*TemplateHandler, error) {
 
 	return &TemplateHandler{
 		Loader: fmt.Sprintf("<micro-puzzle-loader streamingUrl=\"%s\" streamRegisterName=\"%s\"></micro-puzzle-loader>", socketUrl, id),
@@ -32,7 +31,7 @@ type TemplateHandler struct {
 }
 
 type Reader struct {
-	server      *socketio.Server
+	server      *SocketHandler
 	cache       ChacheHandler
 	timeout     time.Duration
 	proxy       proxy.Proxy
@@ -78,8 +77,8 @@ func (r *Reader) loadAsync(url string, content string, result *chan string, time
 
 	contentPage := fmt.Sprintf("<micro-puzzle-element name=\"%s\"><template>%s</template></micro-puzzle-element>", content, string(res))
 	if len(*timeout) == 1 {
-		if r.server.RoomLen("", r.requestId.String()) > 0 {
-			r.server.BroadcastToRoom("/", r.requestId.String(), "NEW_CONTENT", NewContentPayload{Key: content, Value: string(res)})
+		if r.server.Server.RoomLen("", r.requestId.String()) > 0 {
+			r.server.Server.BroadcastToRoom("/", r.requestId.String(), "NEW_CONTENT", NewContentPayload{Key: content, Value: string(res)})
 		} else {
 			err := r.cache.Add(r.requestId.String(), content, []byte(contentPage))
 			if err != nil {

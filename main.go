@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"log"
 	"mime"
 	"net/http"
 	"path/filepath"
@@ -13,11 +12,6 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/gofrs/uuid"
-	socketio "github.com/googollee/go-socket.io"
-	"github.com/googollee/go-socket.io/engineio"
-	"github.com/googollee/go-socket.io/engineio/transport"
-	"github.com/googollee/go-socket.io/engineio/transport/polling"
-	"github.com/googollee/go-socket.io/engineio/transport/websocket"
 )
 
 var allowOriginFunc = func(r *http.Request) bool {
@@ -45,57 +39,11 @@ func main() {
 	r.Use(middleware.Compress(5, "gzip"))
 	cache := NewInMemoryHandler()
 
-	server := socketio.NewServer(&engineio.Options{
-		Transports: []transport.Transport{
-			&polling.Transport{
-				CheckOrigin: allowOriginFunc,
-			},
-			&websocket.Transport{
-				CheckOrigin: allowOriginFunc,
-			},
-		},
-	})
-	server.OnConnect("/", func(s socketio.Conn) error {
-		url := s.URL()
-		id := url.Query().Get("streamId")
-		server.JoinRoom("/", id, s)
-		values, err := cache.GetAllValuesForSession(id)
-		if err != nil {
-			log.Println(err)
-		}
-		for _, v := range values {
-			server.BroadcastToRoom("/", id, "NEW_CONTENT", NewContentPayload{Key: v.Content, Value: string(v.Value)})
-		}
-		log.Println(id)
-		s.SetContext("")
-		log.Println("connected:", s.ID())
-		return nil
-	})
-
-	server.OnEvent("/", "notice", func(s socketio.Conn, msg string) {
-		log.Println("notice:", msg)
-		s.Emit("reply", "have "+msg)
-	})
-
-	server.OnError("/", func(s socketio.Conn, e error) {
-		log.Println("meet error:", e)
-	})
-
-	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
-		server.LeaveAllRooms("/", s)
-		log.Println("closed", reason)
-	})
-
-	go func() {
-		if err := server.Serve(); err != nil {
-			log.Fatalf("socketio listen error: %s\n", err)
-		}
-	}()
-	defer server.Close()
-
-	r.Handle("/socket.io/", server)
+	sockerHandler := NewSocketHandler(&cache)
+	defer sockerHandler.Server.Close()
+	r.Handle("/socket.io/", sockerHandler.Server)
 	f := FileHandler{
-		server: server,
+		server: &sockerHandler,
 		cache:  &cache,
 	}
 	f.ChiFileServer(r, "/", http.Dir("./public"))
@@ -125,7 +73,7 @@ func mimeTypeForFile(file string) string {
 }
 
 type FileHandler struct {
-	server *socketio.Server
+	server *SocketHandler
 	cache  ChacheHandler
 }
 

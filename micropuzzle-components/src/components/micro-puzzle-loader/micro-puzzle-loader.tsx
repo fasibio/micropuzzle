@@ -1,6 +1,6 @@
-import { Component, Host, h, Element, Event, EventEmitter, Prop } from '@stencil/core';
+import { Component, Host, h, Element, Event, EventEmitter, Prop, Listen } from '@stencil/core';
 
-import {NewContentEventDetails} from '../../utils/utils'
+import {NewContentEventDetails, LoadContentPayload} from '../../utils/utils'
 import io from "socket.io-client";
 
 
@@ -9,7 +9,10 @@ import io from "socket.io-client";
   shadow: false,
 })
 export class MicroPuzzleLoader {
-  @Element() el: HTMLElement;
+  @Element() el: HTMLMicroPuzzleLoaderElement;
+  /**
+   * This is a internal micropuzzle event. If new Content is there to show it 
+   */
   @Event({
     eventName: 'new-content',
     bubbles: true,
@@ -17,12 +20,19 @@ export class MicroPuzzleLoader {
     cancelable: true
   }) newContentEvent: EventEmitter<NewContentEventDetails>
 
+  /**
+   * The UUID given by the Micropuzzle SSI side
+   */
   @Prop() streamregistername: string
+
+  /**
+   * The URL where to connect the streamingconnection
+   */
   @Prop() streamingurl: string
 
   private socket: SocketIOClient.Socket;
   constructor(){
-    this.socket =  io({
+    this.socket = io({
       query: `streamId=${this.streamregistername}`
     })
     this.socket.on("NEW_CONTENT", (data: {key: string, value: string}) => {
@@ -32,6 +42,11 @@ export class MicroPuzzleLoader {
       })
     })
    
+  }
+
+  @Listen('load-content', {target: "window"})
+  loadNewContent(event: CustomEvent<LoadContentPayload>){
+    this.socket.emit("LOAD_CONTENT", event.detail)
   }
 
   render() {

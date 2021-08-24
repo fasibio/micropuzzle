@@ -3,13 +3,18 @@ import {NewContentEventDetails} from '../../utils/utils'
 
 @Component({
   tag: 'micro-puzzle-element',
-  styleUrl: 'micro-puzzle-element.css',
   shadow: false,
 })
 export class MicroPuzzleElement {
-  @Element() el: HTMLElement;
+  @Element() el: HTMLMicroPuzzleElementElement;
+
+  /**
+   * The Logic unique name for this elementarea
+   */
   @Prop() name: string
-  element: ShadowRoot
+
+
+  private element: ShadowRoot
 
 
   @Listen('new-content', {target: "window"})
