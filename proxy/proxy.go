@@ -45,15 +45,15 @@ func (p *Proxy) appendHostToXForwardHeader(header http.Header, host string) {
 	header.Set("X-Forwarded-For", host)
 }
 
-func (p *Proxy) Get(url string, req *http.Request) ([]byte, error) {
+func (p *Proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, error) {
 	client := &http.Client{}
-	p.delHopHeaders(req.Header)
+	p.delHopHeaders(header)
 
-	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
-		p.appendHostToXForwardHeader(req.Header, clientIP)
+	if clientIP, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		p.appendHostToXForwardHeader(header, clientIP)
 	}
 	req1, _ := http.NewRequest("GET", url, nil)
-	p.copyHeader(&req1.Header, &req.Header)
+	p.copyHeader(&req1.Header, &header)
 	resp, err := client.Do(req1)
 	if err != nil {
 		return nil, err

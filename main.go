@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"time"
 
@@ -12,6 +15,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/gofrs/uuid"
+	"github.com/urfave/cli/v2"
+	"gopkg.in/ini.v1"
 )
 
 var allowOriginFunc = func(r *http.Request) bool {
@@ -33,23 +38,92 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+const (
+	CliFallbackLoader        = "fallbackloader"
+	CliMicrofrontends        = "microfrontends"
+	CliPublicFolder          = "publicfoder"
+	CliTimeout               = "timeoutms"
+	CliLogLevel              = "logLevel"
+	CliPort                  = "port"
+	EnvPrefix         string = "MICROPUZZLE_"
+)
+
+func getFlagEnvByFlagName(flagName string) string {
+	return EnvPrefix + strings.ToUpper(flagName)
+}
+
 func main() {
-	logger.Initialize("info")
+	app := cli.NewApp()
+	app.Name = "BoulderDB API"
+	app.Description = "Service for low level Data-Communication"
+	runner := Runner{}
+	app.Action = runner.Run
+	app.Flags = []cli.Flag{
+		&cli.DurationFlag{
+			Name:    CliTimeout,
+			EnvVars: []string{getFlagEnvByFlagName(CliTimeout)},
+			Usage:   "Timeout for loading Microfrontends (for all slower, it will be use streaming to bring it to the client)",
+			Value:   45 * time.Millisecond,
+		},
+		&cli.StringFlag{
+			Name:    CliLogLevel,
+			EnvVars: []string{getFlagEnvByFlagName(CliLogLevel)},
+			Usage:   "Loglevel debug, info, warn, error",
+			Value:   "info",
+		},
+		&cli.StringFlag{
+			Name:    CliPort,
+			EnvVars: []string{getFlagEnvByFlagName(CliPort)},
+			Usage:   "port where server will be started",
+			Value:   "3000",
+		},
+		&cli.StringFlag{
+			Name:    CliPublicFolder,
+			EnvVars: []string{getFlagEnvByFlagName(CliPublicFolder)},
+			Value:   "./public",
+			Usage:   "Folder where all html js css from server directly will be foundable (Public folder for the web)",
+		},
+		&cli.StringFlag{
+			Name:    CliMicrofrontends,
+			EnvVars: []string{getFlagEnvByFlagName(CliMicrofrontends)},
+			Value:   "./config/frontends.ini",
+			Usage:   "A ini file (key=value) key is for logic name of microfrontend. value is the url where to fetch the content (groups are . seperated by using)",
+		},
+		&cli.StringFlag{
+			Name:    CliFallbackLoader,
+			EnvVars: []string{getFlagEnvByFlagName(CliFallbackLoader)},
+			Usage:   "key of inifile where to find fallbackhtml which will shown if microfrontend is lower than timeout",
+			Value:   "fallback",
+		},
+	}
+	if err := app.Run(os.Args); err != nil {
+		fmt.Println("Error: ", err)
+	}
+}
+
+type Runner struct{}
+
+func (ru *Runner) Run(c *cli.Context) error {
+	logger.Initialize(c.String(CliLogLevel))
+	iniF, err := ini.Load(c.String(CliMicrofrontends))
+	if err != nil {
+		return err
+	}
 	r := chi.NewRouter()
 	r.Use(middleware.Compress(5, "gzip"))
 	cache := NewInMemoryHandler()
 
-	sockerHandler := NewSocketHandler(&cache)
+	sockerHandler := NewSocketHandler(&cache, c.Duration(CliTimeout), iniF, c.String(CliFallbackLoader))
 	defer sockerHandler.Server.Close()
 	r.Handle("/socket.io/", sockerHandler.Server)
 	f := FileHandler{
 		server: &sockerHandler,
-		cache:  &cache,
 	}
-	f.ChiFileServer(r, "/", http.Dir("./public"))
+	f.ChiFileServer(r, "/", http.Dir(c.String(CliPublicFolder)))
 
-	logger.Get().Infow("Start Server on Port :3000")
-	logger.Get().Fatal(http.ListenAndServe(":3000", r))
+	logger.Get().Infof("Start Server on Port :%s", c.String(CliPort))
+	return http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliPort)), r)
+
 }
 
 func mimeTypeForFile(file string) string {
@@ -74,7 +148,6 @@ func mimeTypeForFile(file string) string {
 
 type FileHandler struct {
 	server *SocketHandler
-	cache  ChacheHandler
 }
 
 func (filehandler *FileHandler) ChiFileServer(r chi.Router, path string, root http.FileSystem) {
@@ -98,19 +171,11 @@ func (filehandler *FileHandler) ChiFileServer(r chi.Router, path string, root ht
 			}
 		} else {
 			w.WriteHeader(http.StatusNotFound)
-			// logger.Get().Info("Will return Fallback ", path)
-			// f, err = root.Open("/index.html")
-			// handleTemplate(f, w, r)
-			// if err != nil {
-			// 	logger.Get().Error("Error by return fallback ", err)
-			// }
 		}
 	})
 }
 
 func (filehandler *FileHandler) handleTemplate(f http.File, dst io.Writer, r *http.Request) error {
-
-	var maxLoadingTime time.Duration = 45 * time.Millisecond
 
 	text, err := io.ReadAll(f)
 	if err != nil {
@@ -121,7 +186,7 @@ func (filehandler *FileHandler) handleTemplate(f http.File, dst io.Writer, r *ht
 		return err
 	}
 
-	handler, err := NewTemplateHandler(r, maxLoadingTime, filehandler.cache, "http://localhost:3000", id, filehandler.server)
+	handler, err := NewTemplateHandler(r, "http://localhost:3000", id, filehandler.server)
 	if err != nil {
 		return err
 	}

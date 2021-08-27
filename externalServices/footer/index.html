@@ -3,5 +3,14 @@
     background-color: red;
   }
 </style>
-
-<h1>Footer</h1>
+<script type="application/javascript">
+  function aboutClick (){
+    console.log('click')
+    const event = new EventEmitter()
+    event.emit('load-content', {
+      loading: "about.content",
+      content: "content"
+    })
+  }
+</script>
+<h1>Footer</h1><a onclick="aboutClick()">about</a>

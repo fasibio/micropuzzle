@@ -6,9 +6,11 @@ services:
       - "5000:80"
     volumes:
       - ./externalServices/footer:/usr/share/nginx/html:Z
-  content:
-    build: "./externalServices/content"
+  startpage_content:
+    build: "./externalServices/startpage_content"
     ports:
       - "5001:6500"
-    volumes:
-      - ./externalServices/content:/usr/share/nginx/html
+  about_content:
+    build: "./externalServices/about_content"
+    ports:
+      - "5002:6500"
