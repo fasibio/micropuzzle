@@ -7,9 +7,9 @@
 
 ## Properties
 
-| Property | Attribute | Description | Type     | Default     |
-| -------- | --------- | ----------- | -------- | ----------- |
-| `name`   | `name`    |             | `string` | `undefined` |
+| Property | Attribute | Description                                | Type     | Default     |
+| -------- | --------- | ------------------------------------------ | -------- | ----------- |
+| `name`   | `name`    | The Logic unique name for this elementarea | `string` | `undefined` |
 
 
 ----------------------------------------------

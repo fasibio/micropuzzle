@@ -31,7 +31,12 @@ type Reader struct {
 }
 
 func (r *Reader) Load(url, content string) string {
-	return r.server.Load(url, content, r.requestId, r.mainRequest.Header, r.mainRequest.RemoteAddr)
+	result := r.server.Load(url, content, r.requestId.String(), r.mainRequest.Header, r.mainRequest.RemoteAddr)
+	return r.getMicroPuzzleElement(content, result)
+}
+
+func (r *Reader) getMicroPuzzleElement(name, content string) string {
+	return fmt.Sprintf("<micro-puzzle-element name=\"%s\"><template>%s</template></micro-puzzle-element>", name, content)
 }
 
 type NewContentPayload struct {

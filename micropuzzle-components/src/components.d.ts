@@ -8,10 +8,19 @@ import { HTMLStencilElement, JSXBase } from "@stencil/core/internal";
 import { NewContentEventDetails } from "./utils/utils";
 export namespace Components {
     interface MicroPuzzleElement {
+        /**
+          * The Logic unique name for this elementarea
+         */
         "name": string;
     }
     interface MicroPuzzleLoader {
+        /**
+          * The URL where to connect the streamingconnection
+         */
         "streamingurl": string;
+        /**
+          * The UUID given by the Micropuzzle SSI side
+         */
         "streamregistername": string;
     }
 }
@@ -35,11 +44,23 @@ declare global {
 }
 declare namespace LocalJSX {
     interface MicroPuzzleElement {
+        /**
+          * The Logic unique name for this elementarea
+         */
         "name"?: string;
     }
     interface MicroPuzzleLoader {
+        /**
+          * This is a internal micropuzzle event. If new Content is there to show it
+         */
         "onNew-content"?: (event: CustomEvent<NewContentEventDetails>) => void;
+        /**
+          * The URL where to connect the streamingconnection
+         */
         "streamingurl"?: string;
+        /**
+          * The UUID given by the Micropuzzle SSI side
+         */
         "streamregistername"?: string;
     }
     interface IntrinsicElements {

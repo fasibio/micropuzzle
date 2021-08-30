@@ -50,7 +50,6 @@ export class MicroPuzzleLoader {
   }
 
   render() {
-    console.log('da', this.streamregistername)
     return (
       <Host >
       </Host>

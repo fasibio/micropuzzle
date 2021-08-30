@@ -6,11 +6,20 @@
 <script type="application/javascript">
   function aboutClick (){
     console.log('click')
-    const event = new EventEmitter()
-    event.emit('load-content', {
+    const event = new CustomEvent('load-content',{
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+      detail: {
       loading: "about.content",
       content: "content"
-    })
+    }})
+    // event.emit('load-content', {
+    //   loading: "about.content",
+    //   content: "content"
+    // })
+    document.dispatchEvent(event);
+
   }
 </script>
 <h1>Footer</h1><a onclick="aboutClick()">about</a>
