@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -12,9 +13,22 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/mitchellh/mapstructure"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"gopkg.in/ini.v1"
 )
+
+var (
+	promLoadFragmentsTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "micropuzzle_duration_load_milliseconds",
+		Help:    "micropuzzle loading nanoseconds for microfrontends",
+		Buckets: []float64{1, 5, 10, 30, 50, 80, 100, 1000},
+	}, []string{"fragment", "frontend", "afterTimeout"})
+)
+
+func init() {
+	prometheus.MustRegister(promLoadFragmentsTime)
+}
 
 var upgrader = websocket.Upgrader{} // use default options
 
@@ -45,8 +59,8 @@ const (
 	SocketCommandLoadFragment = "LOAD_CONTENT"
 	SocketCommandNewContent   = "NEW_CONTENT"
 	PubSubCommandNewFragment  = "new_fragment" //PubSubNewFragmentPayload
-	PubSubCommandNewUser      = "new_user"
-	PubSubCommandRemoveUser   = "remove_user"
+	PubSubCommandNewUser      = "new_user"     // string ==> streamId
+	PubSubCommandRemoveUser   = "remove_user"  //string ==> streamId
 )
 
 type NewFragmentPayload struct {
@@ -56,6 +70,12 @@ type NewFragmentPayload struct {
 type PubSubNewFragmentPayload struct {
 	Payload NewFragmentPayload `json:"payload,omitempty"`
 	Id      string             `json:"id,omitempty"`
+}
+
+type LoadFragmentPayload struct {
+	Content     string `json:"content,omitempty"`
+	Loading     string `json:"loading,omitempty"`
+	ExtraHeader map[string][]string
 }
 
 func (p PubSubNewFragmentPayload) MarshalBinary() ([]byte, error) {
@@ -133,7 +153,7 @@ func (sh *WebSocketHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	for _, v := range values {
 		logs.Infow("Send Data to Client found inside cache", "fragment", v.Content)
 		sh.UpdateClientFragment(user.Id, v.Content, string(v.Value))
-		go sh.cache.Del(v.Session, v.Key)
+		go sh.cache.Del(v.Session, v.Content)
 	}
 }
 
@@ -145,6 +165,7 @@ func (sh *WebSocketHandler) handleMessages(user WebSocketUser) {
 		if err != nil {
 			logs.Infow("error by read json message", "error", err)
 			sh.pubSub.Publish(PubSubCommandRemoveUser, user.Id)
+			go sh.cache.DelAllForSession(user.Id)
 			break
 		}
 		go sh.interpretMessage(user, messages)
@@ -220,7 +241,7 @@ func (sh *WebSocketHandler) Load(frontend, fragmentName string, id string, heade
 	resultChan := make(chan string, 1)
 	timeout := make(chan bool, 1)
 	timeoutBubble := make(chan bool, 1)
-	go sh.loadAsync(sh.getUrlByFrontendName(frontend), fragmentName, &resultChan, &timeoutBubble, id, header, remoteAddr, uuid.String())
+	go sh.loadAsync(frontend, fragmentName, &resultChan, &timeoutBubble, id, header, remoteAddr, uuid.String())
 
 	go func() {
 		time.Sleep(sh.timeout)
@@ -233,17 +254,22 @@ func (sh *WebSocketHandler) Load(frontend, fragmentName string, id string, heade
 		}
 	case <-timeout:
 		{
+			start := time.Now()
 			timeoutBubble <- true
 			res, err := sh.proxy.Get(sh.getUrlByFrontendName(sh.fallbackLoaderKey), header, remoteAddr)
+			promLoadFragmentsTime.WithLabelValues(fragmentName, sh.fallbackLoaderKey, fmt.Sprintf("%v", true)).Observe(float64(time.Since(start).Nanoseconds()) / 1000000)
 			if err != nil {
 				return "Loading ..."
 			}
+
 			return string(res)
 		}
 	}
 }
 
-func (sh *WebSocketHandler) loadAsync(url string, fragmentName string, result *chan string, timeout *chan bool, id string, header http.Header, remoteAddr string, uuid string) {
+func (sh *WebSocketHandler) loadAsync(frontend string, fragmentName string, result *chan string, timeout *chan bool, id string, header http.Header, remoteAddr string, uuid string) {
+	start := time.Now()
+	url := sh.getUrlByFrontendName(frontend)
 	res, err := sh.proxy.Get(url, header, remoteAddr)
 
 	if err != nil {
@@ -264,4 +290,5 @@ func (sh *WebSocketHandler) loadAsync(url string, fragmentName string, result *c
 			*result <- fragment
 		}
 	}
+	promLoadFragmentsTime.WithLabelValues(fragmentName, frontend, fmt.Sprintf("%v", len(*timeout) == 1)).Observe(float64(time.Since(start).Nanoseconds()) / 1000000)
 }

@@ -11,32 +11,19 @@ import (
 	"text/template"
 	"time"
 
+	chiprometheus "github.com/766b/chi-prometheus"
 	"github.com/fasibio/micropuzzle/logger"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-redis/redis/v8"
 	"github.com/gofrs/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/ini.v1"
 )
 
 var allowOriginFunc = func(r *http.Request) bool {
 	return true
-}
-
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		allowHeaders := "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, PUT, PATCH, GET, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Allow-Headers", allowHeaders)
-
-		next.ServeHTTP(w, r)
-	})
 }
 
 const (
@@ -46,6 +33,7 @@ const (
 	CliTimeout               = "timeoutms"
 	CliLogLevel              = "logLevel"
 	CliPort                  = "port"
+	CliManagementPort        = "managementport"
 	CliRedisAddress          = "redisaddr"
 	CliRedisUser             = "redisuser"
 	CliRedisPassword         = "redispassword"
@@ -124,6 +112,12 @@ func main() {
 			Usage:   "Db to use by redis",
 			Value:   0,
 		},
+		&cli.Int64Flag{
+			Name:    CliManagementPort,
+			EnvVars: []string{getFlagEnvByFlagName(CliManagementPort)},
+			Usage:   "Port to get data not needed from client",
+			Value:   3001,
+		},
 	}
 	if err := app.Run(os.Args); err != nil {
 		fmt.Println("Error: ", err)
@@ -139,7 +133,10 @@ func (ru *Runner) Run(c *cli.Context) error {
 		return err
 	}
 	r := chi.NewRouter()
+	managementChi := chi.NewRouter()
+	r.Use(chiprometheus.NewMiddleware("micropuzzle"))
 	r.Use(middleware.Compress(5))
+
 	cache, err := NewRedisHandler(&redis.Options{
 		Addr:     c.String(CliRedisAddress),
 		DB:       c.Int(CliRedisDb),
@@ -163,9 +160,11 @@ func (ru *Runner) Run(c *cli.Context) error {
 	f := FileHandler{
 		server: &websocketHandler,
 	}
+	managementChi.Handle("/metrics", promhttp.Handler())
 	f.ChiFileServer(r, "/", http.Dir(c.String(CliPublicFolder)))
 
-	logger.Get().Infof("Start Server on Port :%s", c.String(CliPort))
+	logger.Get().Infof("Start Server on Port :%s and Management on port %s", c.String(CliPort), c.String(CliManagementPort))
+	go http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliManagementPort)), managementChi)
 	return http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliPort)), r)
 
 }

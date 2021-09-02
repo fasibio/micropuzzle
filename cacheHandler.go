@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"strings"
 	"time"
 
@@ -10,12 +14,13 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-const MaxTTL = 30 * time.Minute
+const MaxTTL = 30 * time.Second
 
 type ChacheHandler interface {
 	Add(session, key string, value string) error
 	Get(session, key string) (DataHolder, error)
 	Del(session, key string) error
+	DelAllForSession(session string) error
 	AddBlocker(session, key string, value string) error
 	GetBlocker(session, key string) (DataHolder, error)
 	GetAllValuesForSession(keyPattern string) ([]DataHolder, error)
@@ -28,10 +33,6 @@ type WebSocketBroadcast interface {
 	Publish(channel string, message interface{}) error
 	Subscribe() error
 	On(channel string, handler SubscriptionHandler)
-}
-
-type InMemoryHandler struct {
-	data map[string][]byte
 }
 
 type DataHolder struct {
@@ -69,11 +70,6 @@ type RedisHandler struct {
 }
 
 func NewRedisHandler(opt *redis.Options) (*RedisHandler, error) {
-	// &redis.Options{
-	// 	Addr:     "localhost:6379",
-	// 	Password: "", // no password set
-	// 	DB:       0,  // use default DB
-	// }
 	rdb := redis.NewClient(opt)
 	return &RedisHandler{
 		client:  rdb,
@@ -124,19 +120,69 @@ func (r *RedisHandler) send2Handler(msg *redis.Message) {
 	}
 }
 
+func (r *RedisHandler) zip(value string) ([]byte, error) {
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+	if _, err := gz.Write([]byte(value)); err != nil {
+		return []byte{}, err
+	}
+	if err := gz.Close(); err != nil {
+		return []byte{}, err
+	}
+	return b.Bytes(), nil
+}
+
+func (r *RedisHandler) unzip(value []byte) (string, error) {
+	var b bytes.Buffer
+	b.Write(value)
+	gzreader, err := gzip.NewReader(&b)
+	if err != nil {
+		return "", err
+	}
+	output, err := ioutil.ReadAll(gzreader)
+	if err != nil {
+		return "", err
+	}
+	defer gzreader.Close()
+
+	return string(output), err
+}
+
 func (r *RedisHandler) Add(session, key string, value string) error {
-	return r.client.Set(r.ctx, r.concatKey(session, key), value, MaxTTL).Err()
+	v, err := r.zip(value)
+	if err != nil {
+		return err
+	}
+	return r.client.Set(r.ctx, r.concatKey(session, key), v, MaxTTL).Err()
 }
 func (r *RedisHandler) Get(session, key string) (DataHolder, error) {
-	res, err := r.client.Get(r.ctx, r.concatKey(session, key)).Result()
+	res, err := r.client.Get(r.ctx, r.concatKey(session, key)).Bytes()
 	if err != nil {
 		return DataHolder{}, err
 	}
-	return r.getDataHolderByData(r.concatKey(session, key), res), nil
+	unZipres, err := r.unzip(res)
+	if err != nil {
+		return DataHolder{}, err
+	}
+
+	return r.getDataHolderByData(r.concatKey(session, key), unZipres), nil
 }
 func (r *RedisHandler) Del(session, key string) error {
 	return r.client.Del(r.ctx, r.concatKey(session, key)).Err()
 }
+
+func (r *RedisHandler) DelAllForSession(session string) error {
+	keys, err := r.client.Keys(r.ctx, r.concatKey(session, "*")).Result()
+	if err != nil {
+		return err
+	}
+	log.Println(r.concatKey(session, "*"))
+	if len(keys) > 0 {
+		return r.client.Del(r.ctx, keys...).Err()
+	}
+	return nil
+}
+
 func (r *RedisHandler) AddBlocker(session, key string, value string) error {
 	return r.client.Set(r.ctx, r.concatBlockerKey(session, key), value, MaxTTL).Err()
 }
@@ -159,11 +205,15 @@ func (r *RedisHandler) GetAllValuesForSession(keyPattern string) ([]DataHolder, 
 	}
 	result := make([]DataHolder, 0)
 	for _, one := range res {
-		res, err := r.client.Get(r.ctx, one).Result()
+		res, err := r.client.Get(r.ctx, one).Bytes()
 		if err != nil {
 			logger.Get().Warnw("error by get data", "error", err)
 		}
-		result = append(result, r.getDataHolderByData(one, res))
+		unZipres, err := r.unzip(res)
+		if err != nil {
+			logger.Get().Warnw("error by unzip data", "error", err)
+		}
+		result = append(result, r.getDataHolderByData(one, unZipres))
 	}
 	return result, nil
 
