@@ -14,6 +14,7 @@ import (
 	"github.com/fasibio/micropuzzle/logger"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/go-redis/redis/v8"
 	"github.com/gofrs/uuid"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/ini.v1"
@@ -45,6 +46,10 @@ const (
 	CliTimeout               = "timeoutms"
 	CliLogLevel              = "logLevel"
 	CliPort                  = "port"
+	CliRedisAddress          = "redisaddr"
+	CliRedisUser             = "redisuser"
+	CliRedisPassword         = "redispassword"
+	CliRedisDb               = "redisdb"
 	EnvPrefix         string = "MICROPUZZLE_"
 )
 
@@ -95,6 +100,30 @@ func main() {
 			Usage:   "key of inifile where to find fallbackhtml which will shown if microfrontend is lower than timeout",
 			Value:   "fallback",
 		},
+		&cli.StringFlag{
+			Name:    CliRedisAddress,
+			EnvVars: []string{getFlagEnvByFlagName(CliRedisAddress)},
+			Usage:   "The domian/ip:port of redis",
+			Value:   "localhost:6379",
+		},
+		&cli.StringFlag{
+			Name:    CliRedisUser,
+			EnvVars: []string{getFlagEnvByFlagName(CliRedisUser)},
+			Usage:   "Username to connect to redis",
+			Value:   "",
+		},
+		&cli.StringFlag{
+			Name:    CliRedisPassword,
+			EnvVars: []string{getFlagEnvByFlagName(CliRedisPassword)},
+			Usage:   "Password to connect to redis",
+			Value:   "",
+		},
+		&cli.Int64Flag{
+			Name:    CliRedisDb,
+			EnvVars: []string{getFlagEnvByFlagName(CliRedisDb)},
+			Usage:   "Db to use by redis",
+			Value:   0,
+		},
 	}
 	if err := app.Run(os.Args); err != nil {
 		fmt.Println("Error: ", err)
@@ -110,14 +139,29 @@ func (ru *Runner) Run(c *cli.Context) error {
 		return err
 	}
 	r := chi.NewRouter()
-	r.Use(middleware.Compress(5, "gzip"))
-	cache := NewInMemoryHandler()
+	r.Use(middleware.Compress(5))
+	cache, err := NewRedisHandler(&redis.Options{
+		Addr:     c.String(CliRedisAddress),
+		DB:       c.Int(CliRedisDb),
+		Username: c.String(CliRedisUser),
+		Password: c.String(CliRedisPassword),
+	})
+	if err != nil {
+		return err
+	}
 
-	sockerHandler := NewSocketHandler(&cache, c.Duration(CliTimeout), iniF, c.String(CliFallbackLoader))
-	defer sockerHandler.Server.Close()
-	r.Handle("/socket.io/", sockerHandler.Server)
+	// sockerHandler := NewSocketHandler(cache, c.Duration(CliTimeout), iniF, c.String(CliFallbackLoader), &socketio.RedisAdapterOptions{
+	// 	Addr:    c.String(CliRedisAddress),
+	// 	Prefix:  "MICROPUZZLE_SOCKET.IO",
+	// 	Network: "tcp",
+	// })
+
+	websocketHandler := NewWebSocketHandler(cache, c.Duration(CliTimeout), iniF, c.String(CliFallbackLoader))
+	// defer sockerHandler.Server.Close()
+	// r.Handle("/socket.io/", sockerHandler.Server)
+	r.HandleFunc("/socket", websocketHandler.Handle)
 	f := FileHandler{
-		server: &sockerHandler,
+		server: &websocketHandler,
 	}
 	f.ChiFileServer(r, "/", http.Dir(c.String(CliPublicFolder)))
 
@@ -147,7 +191,7 @@ func mimeTypeForFile(file string) string {
 }
 
 type FileHandler struct {
-	server *SocketHandler
+	server *WebSocketHandler
 }
 
 func (filehandler *FileHandler) ChiFileServer(r chi.Router, path string, root http.FileSystem) {
@@ -186,7 +230,7 @@ func (filehandler *FileHandler) handleTemplate(f http.File, dst io.Writer, r *ht
 		return err
 	}
 
-	handler, err := NewTemplateHandler(r, "http://localhost:3000", id, filehandler.server)
+	handler, err := NewTemplateHandler(r, "ws://localhost:3000/socket", id, filehandler.server)
 	if err != nil {
 		return err
 	}

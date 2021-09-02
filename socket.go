@@ -1,157 +1,209 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/fasibio/micropuzzle/logger"
 	"github.com/fasibio/micropuzzle/proxy"
-	socketio "github.com/googollee/go-socket.io"
-	"github.com/googollee/go-socket.io/engineio"
-	"github.com/googollee/go-socket.io/engineio/transport"
-	"github.com/googollee/go-socket.io/engineio/transport/polling"
-	"github.com/googollee/go-socket.io/engineio/transport/websocket"
+	"github.com/go-redis/redis/v8"
+	"github.com/gofrs/uuid"
+	"github.com/gorilla/websocket"
+	"github.com/mitchellh/mapstructure"
+	"go.uber.org/zap"
 	"gopkg.in/ini.v1"
 )
 
-const (
-	SocketCommandLoadContent = "LOAD_CONTENT"
-	SocketCommandNewContent  = "NEW_CONTENT"
-)
+var upgrader = websocket.Upgrader{} // use default options
 
-type SocketHandler struct {
+type WebSocketHandler struct {
 	cache             ChacheHandler
-	Server            *socketio.Server
+	pubSub            WebSocketBroadcast
 	proxy             proxy.Proxy
 	timeout           time.Duration
 	destinations      *ini.File
 	fallbackLoaderKey string
+	user              map[string]WebSocketUser
+	allKnowUserIds    map[string]bool
 }
 
-type LoadContentPayload struct {
-	Content     string
-	Loading     string
-	ExtraHeader http.Header
+type Message struct {
+	Type string      `json:"type,omitempty"`
+	Data interface{} `json:"data,omitempty"`
 }
 
-func NewSocketHandler(cache ChacheHandler, timeout time.Duration, destinations *ini.File, fallbackLoaderKey string) SocketHandler {
+type WebSocketUser struct {
+	Connection   *websocket.Conn
+	Id           string
+	RemoteHeader http.Header
+	RemoteAddr   string
+}
 
-	server := socketio.NewServer(&engineio.Options{
-		Transports: []transport.Transport{
-			&polling.Transport{
-				CheckOrigin: allowOriginFunc,
-			},
-			&websocket.Transport{
-				CheckOrigin: allowOriginFunc,
-			},
-		},
-	})
+const (
+	SocketCommandLoadFragment = "LOAD_CONTENT"
+	SocketCommandNewContent   = "NEW_CONTENT"
+	PubSubCommandNewFragment  = "new_fragment" //PubSubNewFragmentPayload
+	PubSubCommandNewUser      = "new_user"
+	PubSubCommandRemoveUser   = "remove_user"
+)
 
-	handler := SocketHandler{
+type NewFragmentPayload struct {
+	Key   string `json:"key,omitempty"`
+	Value string `json:"value,omitempty"`
+}
+type PubSubNewFragmentPayload struct {
+	Payload NewFragmentPayload `json:"payload,omitempty"`
+	Id      string             `json:"id,omitempty"`
+}
+
+func (p PubSubNewFragmentPayload) MarshalBinary() ([]byte, error) {
+	return json.Marshal(p)
+}
+
+func getLoggerWithUserInfo(logs *zap.SugaredLogger, user WebSocketUser) *zap.SugaredLogger {
+	return logs.With("streamid", user.Id, "address", user.RemoteAddr)
+}
+
+func NewWebSocketHandler(cache *RedisHandler, timeout time.Duration, destinations *ini.File, fallbackLoaderKey string) WebSocketHandler {
+	handler := WebSocketHandler{
 		cache:             cache,
-		Server:            server,
+		pubSub:            cache,
 		proxy:             proxy.Proxy{},
 		timeout:           timeout,
 		destinations:      destinations,
 		fallbackLoaderKey: fallbackLoaderKey,
+		user:              make(map[string]WebSocketUser),
+		allKnowUserIds:    make(map[string]bool),
 	}
-	server.OnConnect("/", handler.OnConnect)
-	server.OnEvent("/", SocketCommandLoadContent, handler.OnLoadContent)
-	server.OnError("/", handler.OnError)
-	server.OnDisconnect("/", handler.OnDisconnect)
-	go func() {
-		if err := server.Serve(); err != nil {
-			logger.Get().Warnw("socketio listen error", "error", err)
-		}
-	}()
+
+	handler.pubSub.On(PubSubCommandNewFragment, handler.onNewFragment)
+	handler.pubSub.On(PubSubCommandNewUser, handler.onNewUser)
+	handler.pubSub.On(PubSubCommandRemoveUser, handler.onDelUser)
+	go handler.pubSub.Subscribe()
 	return handler
 }
 
-type SocketUser struct {
-	Connection socketio.Conn
-	Id         string
-	Roomid     string
+func (sh *WebSocketHandler) onDelUser(msg *redis.Message, bus WebSocketBroadcast) {
+	delete(sh.allKnowUserIds, msg.Payload)
 }
 
-func (sh *SocketHandler) getSockerUser(s socketio.Conn) SocketUser {
-	url := s.URL()
-	id := url.Query().Get("streamId")
-	return SocketUser{
-		Connection: s,
-		Id:         s.ID(),
-		Roomid:     id,
+func (sh *WebSocketHandler) onNewUser(msg *redis.Message, bus WebSocketBroadcast) {
+	sh.allKnowUserIds[msg.Payload] = true
+}
+
+func (sh *WebSocketHandler) onNewFragment(msg *redis.Message, bus WebSocketBroadcast) {
+	var payload PubSubNewFragmentPayload
+	json.Unmarshal([]byte(msg.Payload), &payload)
+	user, ok := sh.user[payload.Id]
+	if ok {
+		err := sh.writeFragmentToClient(user, &payload.Payload)
+		if err != nil {
+			logger.Get().Warnw("error by send data to client", "error", err, "methode", "onNewFragment")
+		}
 	}
 }
-func (sh *SocketHandler) OnConnect(s socketio.Conn) error {
-	user := sh.getSockerUser(s)
-	sh.Server.JoinRoom("/", user.Roomid, s)
-	logs := logger.Get().With("method", "OnConnect", "userID", user.Id, "connectionID", user.Roomid)
-	values, err := sh.cache.GetAllValuesForSession(user.Roomid)
+
+func (sh *WebSocketHandler) getSockerUser(c *websocket.Conn, r *http.Request) WebSocketUser {
+	return WebSocketUser{
+		Connection:   c,
+		Id:           r.URL.Query().Get("streamid"),
+		RemoteHeader: r.Header,
+		RemoteAddr:   r.RemoteAddr,
+	}
+}
+
+func (sh *WebSocketHandler) Handle(w http.ResponseWriter, r *http.Request) {
+	c, err := upgrader.Upgrade(w, r, nil)
+	user := sh.getSockerUser(c, r)
+	logs := getLoggerWithUserInfo(logger.Get(), user)
+	sh.user[user.Id] = user
+	sh.pubSub.Publish(PubSubCommandNewUser, user.Id)
+	if err != nil {
+		logs.Warnw("Error by upgrade To websocket con", "error", err)
+	}
+
+	go sh.handleMessages(user)
+
+	values, err := sh.cache.GetAllValuesForSession(user.Id)
 	if err != nil {
 		logs.Warnw("Error by create connection", "error", err)
-		return err
 	}
 	for _, v := range values {
-		sh.Server.BroadcastToRoom("/", user.Roomid, SocketCommandNewContent, NewContentPayload{Key: v.Content, Value: string(v.Value)})
+		logs.Infow("Send Data to Client found inside cache", "fragment", v.Content)
+		sh.UpdateClientFragment(user.Id, v.Content, string(v.Value))
+		go sh.cache.Del(v.Session, v.Key)
 	}
-	s.SetContext("")
-	logs.Info("New user Connected")
-	return nil
 }
 
-func (sh *SocketHandler) OnLoadContent(s socketio.Conn, msg LoadContentPayload) {
-	user := sh.getSockerUser(s)
+func (sh *WebSocketHandler) handleMessages(user WebSocketUser) {
+	logs := getLoggerWithUserInfo(logger.Get(), user)
+	for {
+		var messages Message
+		err := user.Connection.ReadJSON(&messages)
+		if err != nil {
+			logs.Infow("error by read json message", "error", err)
+			sh.pubSub.Publish(PubSubCommandRemoveUser, user.Id)
+			break
+		}
+		go sh.interpretMessage(user, messages)
+	}
+}
 
-	header := s.RemoteHeader()
+func (sh *WebSocketHandler) interpretMessage(user WebSocketUser, msg Message) {
+	switch msg.Type {
+	case SocketCommandLoadFragment:
+		var result LoadFragmentPayload
+		mapstructure.Decode(msg.Data, &result)
+		sh.OnLoadFragment(user, result)
+	}
+}
+
+func (sh *WebSocketHandler) OnLoadFragment(user WebSocketUser, msg LoadFragmentPayload) {
+
+	header := user.RemoteHeader
 	for k, v := range msg.ExtraHeader {
 		header[k] = v
 	}
-	result := sh.Load(msg.Loading, msg.Content, user.Roomid, header, s.RemoteAddr().String())
-	sh.Server.BroadcastToRoom("/", user.Roomid, SocketCommandNewContent, NewContentPayload{Key: msg.Content, Value: result})
+	result := sh.Load(msg.Loading, msg.Content, user.Id, header, user.RemoteAddr)
+	sh.writeFragmentToClient(user, &NewFragmentPayload{
+		Key:   msg.Content,
+		Value: result,
+	})
 }
 
-func (sh *SocketHandler) OnError(s socketio.Conn, e error) {
-	logs := logger.Get().With("method", "OnError")
-	logs.Warnw("error at socket connection", "error", e)
+func (sh *WebSocketHandler) writeFragmentToClient(user WebSocketUser, payload *NewFragmentPayload) error {
+	return sh.writeMessage2Client(user, Message{Type: SocketCommandNewContent, Data: payload})
 }
 
-func (sh *SocketHandler) OnDisconnect(s socketio.Conn, reason string) {
-	logs := logger.Get().With("method", "OnDisconnect")
-	sh.Server.LeaveAllRooms("/", s)
-	logs.Infow("User Disconnect", "error", reason)
+func (sh *WebSocketHandler) writeMessage2Client(user WebSocketUser, payload Message) error {
+	return user.Connection.WriteJSON(payload)
 }
 
-func (sh *SocketHandler) HandleClientContent(id string, key, value string) {
-
-	if sh.Server.RoomLen("", id) > 0 {
-		sh.Server.BroadcastToRoom("/", id, SocketCommandNewContent, NewContentPayload{Key: key, Value: value})
+func (sh *WebSocketHandler) UpdateClientFragment(id, key, value string) {
+	_, ok := sh.allKnowUserIds[id]
+	if ok {
+		err := sh.pubSub.Publish(PubSubCommandNewFragment, PubSubNewFragmentPayload{
+			Payload: NewFragmentPayload{
+				Key:   key,
+				Value: value,
+			},
+			Id: id})
+		if err != nil {
+			logger.Get().Warnw("error by publish to redis", "error", err)
+		}
 	} else {
-		err := sh.cache.Add(id, key, []byte(value))
+		err := sh.cache.Add(id, key, value)
 		if err != nil {
 			logs := logger.Get().With("method", "HandleClientContent", "connectionID", id)
 			logs.Warnw("error by add data to cache", "error", err)
 		}
 	}
+
 }
 
-func (sh *SocketHandler) loadAsync(url string, content string, result *chan string, timeout *chan bool, id string, header http.Header, remoteAddr string) {
-	res, err := sh.proxy.Get(url, header, remoteAddr)
-
-	if err != nil {
-		logger.Get().Warnw("error by load url", "url", url, "error", err)
-		return
-	}
-
-	contentPage := string(res)
-	if len(*timeout) == 1 {
-		sh.HandleClientContent(id, content, contentPage)
-	} else {
-		*result <- contentPage
-	}
-}
-
-func (sh *SocketHandler) getUrlByFrontendName(name string) string {
+func (sh *WebSocketHandler) getUrlByFrontendName(name string) string {
 	val := strings.Split(name, ".")
 	if len(val) == 1 {
 		return sh.destinations.Section("").KeysHash()[name]
@@ -159,11 +211,16 @@ func (sh *SocketHandler) getUrlByFrontendName(name string) string {
 	return sh.destinations.Section(val[0]).KeysHash()[val[1]]
 }
 
-func (sh *SocketHandler) Load(frontend, content string, id string, header http.Header, remoteAddr string) string {
+func (sh *WebSocketHandler) Load(frontend, fragmentName string, id string, header http.Header, remoteAddr string) string {
+	uuid, err := uuid.NewV4()
+	if err != nil {
+		logger.Get().Warnw("Unexpected error happens by gernerate uuid", "error", err)
+	}
+	sh.cache.AddBlocker(id, fragmentName, uuid.String())
 	resultChan := make(chan string, 1)
 	timeout := make(chan bool, 1)
 	timeoutBubble := make(chan bool, 1)
-	go sh.loadAsync(sh.getUrlByFrontendName(frontend), content, &resultChan, &timeoutBubble, id, header, remoteAddr)
+	go sh.loadAsync(sh.getUrlByFrontendName(frontend), fragmentName, &resultChan, &timeoutBubble, id, header, remoteAddr, uuid.String())
 
 	go func() {
 		time.Sleep(sh.timeout)
@@ -182,6 +239,29 @@ func (sh *SocketHandler) Load(frontend, content string, id string, header http.H
 				return "Loading ..."
 			}
 			return string(res)
+		}
+	}
+}
+
+func (sh *WebSocketHandler) loadAsync(url string, fragmentName string, result *chan string, timeout *chan bool, id string, header http.Header, remoteAddr string, uuid string) {
+	res, err := sh.proxy.Get(url, header, remoteAddr)
+
+	if err != nil {
+		logger.Get().Warnw("error by load url", "url", url, "error", err)
+		return
+	}
+
+	fragment := string(res)
+	data, err := sh.cache.GetBlocker(id, fragmentName)
+	if err != nil {
+		logger.Get().Infow("Error by get blockerdata from cache this is not an error at all it also could mean other content was faster at loading", "error", err)
+	}
+	if string(data.Value) == uuid {
+		go sh.cache.DelBlocker(id, fragmentName)
+		if len(*timeout) == 1 {
+			sh.UpdateClientFragment(id, fragmentName, fragment)
+		} else {
+			*result <- fragment
 		}
 	}
 }

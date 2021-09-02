@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"compress/gzip"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -59,5 +61,18 @@ func (p *Proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, 
 		return nil, err
 	}
 	defer resp.Body.Close()
-	return io.ReadAll(resp.Body)
+
+	var reader io.ReadCloser
+	switch resp.Header.Get("Content-Encoding") {
+	case "gzip":
+		reader, err = gzip.NewReader(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer reader.Close()
+	default:
+		reader = resp.Body
+	}
+
+	return io.ReadAll(reader)
 }

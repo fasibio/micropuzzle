@@ -4,14 +4,14 @@
   }
 </style>
 <script type="application/javascript">
-  function aboutClick (){
+  function load (dest){
     console.log('click')
     const event = new CustomEvent('load-content',{
       bubbles: true,
       composed: true,
       cancelable: true,
       detail: {
-      loading: "about.content",
+      loading: dest,
       content: "content"
     }})
     // event.emit('load-content', {
@@ -22,4 +22,5 @@
 
   }
 </script>
-<h1>Footer</h1><a onclick="aboutClick()">about</a>
+<h1>Footer</h1><a onclick="load('about.content')">about</a>
+<a onclick="load('startpage.content')">start</a>

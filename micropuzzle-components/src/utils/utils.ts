@@ -9,3 +9,11 @@ export type LoadContentPayload = {
   content: string;
   loading: string;
 };
+
+export const sleep = (timeMs: number): Promise<unknown> => {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve('');
+    }, timeMs);
+  });
+};

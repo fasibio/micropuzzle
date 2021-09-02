@@ -3,6 +3,14 @@
     "project": "./tsconfig.json"
   },
   "extends": [
+    "prettier",
     "plugin:@stencil/recommended"
-  ]
+  ],
+  "plugins": [
+    "prettier"
+  ],
+  "rules": {
+    "prettier/prettier": "error",
+    "@stencil/decorators-style": ["error", { "prop": "ignore", "method": "multiline" }] 
+  }
 }
