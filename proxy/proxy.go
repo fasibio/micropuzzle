@@ -7,6 +7,9 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/pquerna/cachecontrol"
 )
 
 var hopHeaders = []string{
@@ -47,7 +50,7 @@ func (p *Proxy) appendHostToXForwardHeader(header http.Header, host string) {
 	header.Set("X-Forwarded-For", host)
 }
 
-func (p *Proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, error) {
+func (p *Proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, time.Duration, error) {
 	client := &http.Client{}
 	p.delHopHeaders(header)
 
@@ -57,8 +60,9 @@ func (p *Proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, 
 	req1, _ := http.NewRequest("GET", url, nil)
 	p.copyHeader(&req1.Header, &header)
 	resp, err := client.Do(req1)
+
 	if err != nil {
-		return nil, err
+		return nil, time.Duration(0), err
 	}
 	defer resp.Body.Close()
 
@@ -73,6 +77,12 @@ func (p *Proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, 
 	default:
 		reader = resp.Body
 	}
+	_, expires, _ := cachecontrol.CachableResponse(req1, resp, cachecontrol.Options{})
+	diff := time.Until(expires)
+	if diff < 0 {
+		diff = time.Duration(0)
 
-	return io.ReadAll(reader)
+	}
+	content, err := io.ReadAll(reader)
+	return content, diff, err
 }

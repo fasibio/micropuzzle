@@ -10,6 +10,7 @@ require (
 	github.com/googollee/go-socket.io v1.6.1 // indirect
 	github.com/gorilla/websocket v1.4.2
 	github.com/mitchellh/mapstructure v1.4.1
+	github.com/pquerna/cachecontrol v0.1.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/urfave/cli/v2 v2.3.0

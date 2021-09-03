@@ -31,7 +31,7 @@ type Reader struct {
 }
 
 func (r *Reader) Load(url, content string) string {
-	result := r.server.Load(url, content, r.requestId.String(), r.mainRequest.Header, r.mainRequest.RemoteAddr)
+	result := r.server.LoadFragment(url, content, r.requestId.String(), r.mainRequest.RemoteAddr, r.mainRequest.Header)
 	return r.getMicroPuzzleElement(content, result)
 }
 

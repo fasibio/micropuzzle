@@ -21,6 +21,8 @@ type ChacheHandler interface {
 	Get(session, key string) (DataHolder, error)
 	Del(session, key string) error
 	DelAllForSession(session string) error
+	AddPage(key, value string, ttl time.Duration) error
+	GetPage(key string) (string, error)
 	AddBlocker(session, key string, value string) error
 	GetBlocker(session, key string) (DataHolder, error)
 	GetAllValuesForSession(keyPattern string) ([]DataHolder, error)
@@ -40,6 +42,22 @@ type DataHolder struct {
 	Key     string
 	Content string
 	Session string
+}
+
+func (r *RedisHandler) AddPage(key, value string, ttl time.Duration) error {
+	res, err := r.zip(value)
+	if err != nil {
+		return err
+	}
+	return r.client.Set(r.ctx, r.concatPageKey(key), res, ttl).Err()
+}
+
+func (r *RedisHandler) GetPage(key string) (string, error) {
+	res, err := r.client.Get(r.ctx, r.concatPageKey(key)).Bytes()
+	if err != nil {
+		return "", err
+	}
+	return r.unzip(res)
 }
 
 func (r *RedisHandler) getDataHolderByData(key string, value string) DataHolder {
@@ -176,7 +194,6 @@ func (r *RedisHandler) DelAllForSession(session string) error {
 	if err != nil {
 		return err
 	}
-	log.Println(r.concatKey(session, "*"))
 	if len(keys) > 0 {
 		return r.client.Del(r.ctx, keys...).Err()
 	}
@@ -184,9 +201,11 @@ func (r *RedisHandler) DelAllForSession(session string) error {
 }
 
 func (r *RedisHandler) AddBlocker(session, key string, value string) error {
+	log.Println("hier", r.concatBlockerKey(session, key), value)
 	return r.client.Set(r.ctx, r.concatBlockerKey(session, key), value, MaxTTL).Err()
 }
 func (r *RedisHandler) GetBlocker(session, key string) (DataHolder, error) {
+	log.Println("da", r.concatBlockerKey(session, key))
 	res, err := r.client.Get(r.ctx, r.concatBlockerKey(session, key)).Result()
 	if err != nil {
 		return DataHolder{}, err
@@ -220,6 +239,10 @@ func (r *RedisHandler) GetAllValuesForSession(keyPattern string) ([]DataHolder, 
 }
 func (r *RedisHandler) concatBlockerKey(session, key string) string {
 	return fmt.Sprintf("%s_BLOCKER_%s_%s", r.Prefix, session, key)
+}
+
+func (r *RedisHandler) concatPageKey(key string) string {
+	return fmt.Sprintf("%s_PAGE_%s", r.Prefix, key)
 }
 
 func (r *RedisHandler) concatKey(session, key string) string {
