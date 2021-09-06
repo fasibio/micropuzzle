@@ -15,6 +15,10 @@ export namespace Components {
     }
     interface MicroPuzzleLoader {
         /**
+          * The count of Fallbacks by initial loading
+         */
+        "fallbacks": number;
+        /**
           * The URL where to connect the streamingconnection
          */
         "streamingurl": string;
@@ -50,6 +54,10 @@ declare namespace LocalJSX {
         "name"?: string;
     }
     interface MicroPuzzleLoader {
+        /**
+          * The count of Fallbacks by initial loading
+         */
+        "fallbacks"?: number;
         /**
           * This is a internal micropuzzle event. If new Content is there to show it
          */

@@ -10,6 +10,12 @@ export type LoadContentPayload = {
   loading: string;
 };
 
+export interface NewFragmentPayload {
+  key: string;
+  value: string;
+  isFallback: boolean;
+}
+
 export const sleep = (timeMs: number): Promise<unknown> => {
   return new Promise(resolve => {
     setTimeout(() => {

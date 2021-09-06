@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"strings"
 	"time"
 
@@ -201,11 +200,9 @@ func (r *RedisHandler) DelAllForSession(session string) error {
 }
 
 func (r *RedisHandler) AddBlocker(session, key string, value string) error {
-	log.Println("hier", r.concatBlockerKey(session, key), value)
 	return r.client.Set(r.ctx, r.concatBlockerKey(session, key), value, MaxTTL).Err()
 }
 func (r *RedisHandler) GetBlocker(session, key string) (DataHolder, error) {
-	log.Println("da", r.concatBlockerKey(session, key))
 	res, err := r.client.Get(r.ctx, r.concatBlockerKey(session, key)).Result()
 	if err != nil {
 		return DataHolder{}, err

@@ -10,28 +10,37 @@ import (
 func NewTemplateHandler(r *http.Request, socketUrl string, id uuid.UUID, server *WebSocketHandler) (*TemplateHandler, error) {
 
 	return &TemplateHandler{
-		Loader: fmt.Sprintf("<micro-puzzle-loader streamingUrl=\"%s\" streamRegisterName=\"%s\"></micro-puzzle-loader>", socketUrl, id),
+		socketUrl: socketUrl,
 		Reader: Reader{
-			requestId:   id,
-			mainRequest: r,
-			server:      server,
+			hasFallbacks: 0,
+			requestId:    id,
+			mainRequest:  r,
+			server:       server,
 		},
 	}, nil
 }
 
 type TemplateHandler struct {
-	Reader Reader
-	Loader string
+	socketUrl string
+	Reader    Reader
+}
+
+func (t *TemplateHandler) Loader() string {
+	return fmt.Sprintf("<micro-puzzle-loader streamingUrl=\"%s\" streamRegisterName=\"%s\" fallbacks=\"%d\"></micro-puzzle-loader>", t.socketUrl, t.Reader.requestId, t.Reader.hasFallbacks)
 }
 
 type Reader struct {
-	server      *WebSocketHandler
-	mainRequest *http.Request
-	requestId   uuid.UUID
+	server       *WebSocketHandler
+	mainRequest  *http.Request
+	requestId    uuid.UUID
+	hasFallbacks int64
 }
 
 func (r *Reader) Load(url, content string) string {
-	result := r.server.LoadFragment(url, content, r.requestId.String(), r.mainRequest.RemoteAddr, r.mainRequest.Header)
+	result, isFallback := r.server.LoadFragment(url, content, r.requestId.String(), r.mainRequest.RemoteAddr, r.mainRequest.Header)
+	if isFallback {
+		r.hasFallbacks = r.hasFallbacks + 1
+	}
 	return r.getMicroPuzzleElement(content, result)
 }
 

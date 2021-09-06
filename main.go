@@ -146,20 +146,12 @@ func (ru *Runner) Run(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
-	// sockerHandler := NewSocketHandler(cache, c.Duration(CliTimeout), iniF, c.String(CliFallbackLoader), &socketio.RedisAdapterOptions{
-	// 	Addr:    c.String(CliRedisAddress),
-	// 	Prefix:  "MICROPUZZLE_SOCKET.IO",
-	// 	Network: "tcp",
-	// })
-
 	websocketHandler := NewWebSocketHandler(cache, c.Duration(CliTimeout), iniF, c.String(CliFallbackLoader))
-	// defer sockerHandler.Server.Close()
-	// r.Handle("/socket.io/", sockerHandler.Server)
 	r.HandleFunc("/socket", websocketHandler.Handle)
 	f := FileHandler{
 		server: &websocketHandler,
 	}
+	r.Get("/micro-puzzle", websocketHandler.LoadFragmentHandler)
 	managementChi.Handle("/metrics", promhttp.Handler())
 	f.ChiFileServer(r, "/", http.Dir(c.String(CliPublicFolder)))
 
@@ -170,9 +162,6 @@ func (ru *Runner) Run(c *cli.Context) error {
 }
 
 func mimeTypeForFile(file string) string {
-	// We use a built in table of the common types since the system
-	// TypeByExtension might be unreliable. But if we don't know, we delegate
-	// to the system.
 	ext := filepath.Ext(file)
 	switch ext {
 	case ".htm", ".html":
@@ -181,8 +170,6 @@ func mimeTypeForFile(file string) string {
 		return "text/css"
 	case ".js":
 		return "application/javascript"
-
-		// ...
 
 	default:
 		return mime.TypeByExtension(ext)

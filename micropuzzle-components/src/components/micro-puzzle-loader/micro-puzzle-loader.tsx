@@ -1,5 +1,5 @@
 import { Component, Host, h, Element, Event, EventEmitter, Prop, Listen } from '@stencil/core';
-import { NewContentEventDetails, LoadContentPayload } from '../../utils/utils';
+import { NewContentEventDetails, NewFragmentPayload, LoadContentPayload } from '../../utils/utils';
 
 @Component({
   tag: 'micro-puzzle-loader',
@@ -28,42 +28,58 @@ export class MicroPuzzleLoader {
    */
   @Prop() streamingurl: string;
 
+  /**
+   * The count of Fallbacks by initial loading
+   */
+  @Prop() fallbacks: number;
+
+  private waitingLoadings = 0;
+  private asyncLoadingCount = 0;
   private socket: WebSocket;
   constructor() {
-    this.socket = new WebSocket(`${this.streamingurl}?streamid=${this.streamregistername}`);
-    this.socket.onmessage = event => {
-      const data = JSON.parse(event.data) as {
-        type: string;
-        data: unknown;
-      };
-      if (data.type === 'NEW_CONTENT') {
-        const newContentData = data.data as {
-          key: string;
-          value: string;
+    this.waitingLoadings = this.fallbacks;
+    if (this.fallbacks > 0) {
+      this.startSocketConnection();
+    }
+  }
+
+  private startSocketConnection() {
+    if (this.socket === undefined || this.socket.readyState !== WebSocket.OPEN) {
+      this.socket = new WebSocket(`${this.streamingurl}?streamid=${this.streamregistername}`);
+      this.socket.onmessage = event => {
+        const data = JSON.parse(event.data) as {
+          type: string;
+          data: unknown;
         };
-        this.newContentEvent.emit({
-          content: newContentData.value,
-          name: newContentData.key,
-        });
-      }
-    };
-    // this.socket.on("NEW_CONTENT", (data: {key: string, value: string}) => {
-    //   console.log(data.value)
-    //   this.newContentEvent.emit({
-    //     content: data.value,
-    //     name:data.key
-    //   })
-    // })
+        if (data.type === 'NEW_CONTENT') {
+          this.sendNewContentEvent(data.data as NewFragmentPayload);
+          this.asyncLoadingCount = this.asyncLoadingCount + 1;
+          if (this.waitingLoadings === this.asyncLoadingCount) {
+            this.waitingLoadings = 0;
+            this.asyncLoadingCount = 0;
+            this.socket.close();
+          }
+        }
+      };
+    }
+  }
+
+  private sendNewContentEvent(data: NewFragmentPayload) {
+    this.newContentEvent.emit({
+      content: data.value,
+      name: data.key,
+    });
   }
 
   @Listen('load-content', { target: 'window' })
-  loadNewContent(event: CustomEvent<LoadContentPayload>) {
-    this.socket.send(
-      JSON.stringify({
-        type: 'LOAD_CONTENT',
-        data: event.detail,
-      }),
-    );
+  async loadNewContent(event: CustomEvent<LoadContentPayload>) {
+    const result = await fetch(`/micro-puzzle?fragment=${event.detail.loading}&frontend=${event.detail.content}&streamid=${this.streamregistername}`);
+    const data: NewFragmentPayload = await result.json();
+    this.sendNewContentEvent(data);
+    if (data.isFallback) {
+      this.startSocketConnection();
+      this.waitingLoadings = this.waitingLoadings + 1;
+    }
   }
 
   render() {

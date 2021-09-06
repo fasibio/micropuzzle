@@ -55,6 +55,17 @@ type WebSocketUser struct {
 	RemoteAddr   string
 }
 
+type loadAsyncOptions struct {
+	Frontend     string
+	FragmentName string
+	UserId       string
+	Uuid         string
+	RemoteAddr   string
+	Header       http.Header
+	Result       chan<- string
+	Timeout      chan<- bool
+}
+
 const (
 	SocketCommandLoadFragment = "LOAD_CONTENT"
 	SocketCommandNewContent   = "NEW_CONTENT"
@@ -64,8 +75,9 @@ const (
 )
 
 type NewFragmentPayload struct {
-	Key   string `json:"key,omitempty"`
-	Value string `json:"value,omitempty"`
+	Key        string `json:"key,omitempty"`
+	Value      string `json:"value,omitempty"`
+	IsFallback bool   `json:"isFallback,omitempty"`
 }
 type PubSubNewFragmentPayload struct {
 	Payload NewFragmentPayload `json:"payload,omitempty"`
@@ -187,11 +199,28 @@ func (sh *WebSocketHandler) onLoadFragment(user WebSocketUser, msg LoadFragmentP
 	for k, v := range msg.ExtraHeader {
 		header[k] = v
 	}
-	result := sh.LoadFragment(msg.Loading, msg.Content, user.Id, user.RemoteAddr, header)
+	result, isFallback := sh.LoadFragment(msg.Loading, msg.Content, user.Id, user.RemoteAddr, header)
 	sh.writeFragmentToClient(user, &NewFragmentPayload{
-		Key:   msg.Content,
-		Value: result,
+		Key:        msg.Content,
+		Value:      result,
+		IsFallback: isFallback,
 	})
+}
+
+func (sh *WebSocketHandler) LoadFragmentHandler(w http.ResponseWriter, r *http.Request) {
+	fragment := r.URL.Query().Get("fragment")
+	frontend := r.URL.Query().Get("frontend")
+	userId := r.URL.Query().Get("streamid")
+	content, isFallback := sh.LoadFragment(fragment, frontend, userId, r.RemoteAddr, r.Header)
+	c, err := json.Marshal(NewFragmentPayload{
+		Key:        frontend,
+		Value:      content,
+		IsFallback: isFallback,
+	})
+	if err != nil {
+		logger.Get().Warnw("error by marshal result", "error", err)
+	}
+	w.Write(c)
 }
 
 func (sh *WebSocketHandler) writeFragmentToClient(user WebSocketUser, payload *NewFragmentPayload) error {
@@ -232,12 +261,21 @@ func (sh *WebSocketHandler) getUrlByFrontendName(name string) string {
 	return sh.destinations.Section(val[0]).KeysHash()[val[1]]
 }
 
-func (sh *WebSocketHandler) LoadFragment(frontend, fragmentName, id, remoteAddr string, header http.Header) string {
+// LoadFragment try to load the microfrontend
+// it this need longer than defined timeout it will return a fallback(some loader) instance of microfrontend.
+// It will be start an asnyc loader to get data over the websocket connection to the client if it is there
+// frontend the key defined at destinations.
+// fragmentName the part of conent to load this
+// userId the uuid from client
+// remoteAddr which comes from client (needed for proxy)
+// header comes from client
+// It retruns the content and a bool if is a fallback and not the microfrontent content
+func (sh *WebSocketHandler) LoadFragment(frontend, fragmentName, userId, remoteAddr string, header http.Header) (string, bool) {
 	uuid, err := uuid.NewV4()
 	if err != nil {
 		logger.Get().Warnw("Unexpected error happens by gernerate uuid", "error", err)
 	}
-	err = sh.cache.AddBlocker(id, fragmentName, uuid.String())
+	err = sh.cache.AddBlocker(userId, fragmentName, uuid.String())
 	if err != nil {
 		logger.Get().Warnw("Error by write blocker", "error", err)
 	}
@@ -247,7 +285,7 @@ func (sh *WebSocketHandler) LoadFragment(frontend, fragmentName, id, remoteAddr 
 	go sh.loadAsync(loadAsyncOptions{
 		Frontend:     frontend,
 		FragmentName: fragmentName,
-		UserId:       id,
+		UserId:       userId,
 		RemoteAddr:   remoteAddr,
 		Uuid:         uuid.String(),
 		Header:       header,
@@ -261,7 +299,7 @@ func (sh *WebSocketHandler) LoadFragment(frontend, fragmentName, id, remoteAddr 
 	}()
 	select {
 	case d := <-resultChan:
-		return d
+		return d, false
 	case <-timeout:
 		start := time.Now()
 		timeoutBubble <- true
@@ -272,7 +310,7 @@ func (sh *WebSocketHandler) LoadFragment(frontend, fragmentName, id, remoteAddr 
 				Frontend:     sh.fallbackLoaderKey,
 			}, true, true, start)
 			promLoadFragmentsTime.WithLabelValues(fragmentName, sh.fallbackLoaderKey, "true", "true").Observe(float64(time.Since(start).Nanoseconds()) / 1000000)
-			return cachedValue
+			return cachedValue, true
 		}
 		res, expire, err := sh.proxy.Get(sh.getUrlByFrontendName(sh.fallbackLoaderKey), header, remoteAddr)
 		if expire > 0 {
@@ -283,10 +321,10 @@ func (sh *WebSocketHandler) LoadFragment(frontend, fragmentName, id, remoteAddr 
 			Frontend:     sh.fallbackLoaderKey,
 		}, false, true, start)
 		if err != nil {
-			return "Loading ..."
+			return "Loading ...", true
 		}
 
-		return string(res)
+		return string(res), true
 	}
 }
 
@@ -302,17 +340,6 @@ func (sh *WebSocketHandler) handleFragmentContent(options loadAsyncOptions, cont
 			options.Result <- content
 		}
 	}
-}
-
-type loadAsyncOptions struct {
-	Frontend     string
-	FragmentName string
-	UserId       string
-	Uuid         string
-	RemoteAddr   string
-	Header       http.Header
-	Result       chan<- string
-	Timeout      chan<- bool
 }
 
 func (sh *WebSocketHandler) loadAsync(options loadAsyncOptions) {

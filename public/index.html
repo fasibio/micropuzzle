@@ -6,13 +6,13 @@
     <script type="module" src="/lib/micropuzzle-components.esm.js"></script>
   </head>
   <body>
-    {{.Loader}}
     <h1>Test</h1>
     <div style="height: 50px; ">
-    {{.Reader.Load "startpage.content" "content"}}
+      {{.Reader.Load "startpage.content" "content"}}
     </div>
     <div style="height: 50px; ">
-    {{.Reader.Load "footer" "footer"}}
+      {{.Reader.Load "footer" "footer"}}
     </div>
+    {{.Loader}}
   </body>
 </html>
