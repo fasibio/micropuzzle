@@ -54,7 +54,7 @@ with `--microfrontends` (or over Environment `MICROPUZZLE_MICROFRONTENDS`) you c
 Inside this file you can configure with logic fragment have which url to load the content. [example](/config/frontends.ini)
 
 ## Configure your frontend scarlett
-with `--publicfoder` (or over Environment `MICROPUZZLE_PUBLICFODER`) you can set the folder where to find root index.html template
+with `--publicfolder` (or over Environment `MICROPUZZLE_PUBLICFODER`) you can set the folder where to find root index.html template
 Inside this folder you can use normal html, css, js with should be global there. 
 
 [take a look here](/public/index.html)
