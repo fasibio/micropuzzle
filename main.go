@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"io"
 	"mime"
@@ -47,8 +48,9 @@ func getFlagEnvByFlagName(flagName string) string {
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "BoulderDB API"
-	app.Description = "Service for low level Data-Communication"
+	app.Name = "Micropuzzle"
+
+	app.Description = "Application to combine Server Side Include and Afterloading"
 	runner := Runner{}
 	app.Action = runner.Run
 	app.Flags = []cli.Flag{
@@ -124,6 +126,9 @@ func main() {
 	}
 }
 
+//go:embed micro-lib/*.js
+var embededLib embed.FS
+
 type Runner struct{}
 
 func (ru *Runner) Run(c *cli.Context) error {
@@ -152,6 +157,7 @@ func (ru *Runner) Run(c *cli.Context) error {
 		server: &websocketHandler,
 	}
 	r.Get("/micro-puzzle", websocketHandler.LoadFragmentHandler)
+	r.Handle("/micro-lib/*", http.FileServer(http.FS(embededLib)))
 	managementChi.Handle("/metrics", promhttp.Handler())
 	f.ChiFileServer(r, "/", http.Dir(c.String(CliPublicFolder)))
 

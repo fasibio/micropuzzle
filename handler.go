@@ -25,6 +25,10 @@ type TemplateHandler struct {
 	Reader    Reader
 }
 
+func (t *TemplateHandler) ScriptLoader() string {
+	return "<script type=\"module\" src=\"/micro-lib/micropuzzle-components.esm.js\"></script>"
+}
+
 func (t *TemplateHandler) Loader() string {
 	return fmt.Sprintf("<micro-puzzle-loader streamingUrl=\"%s\" streamRegisterName=\"%s\" fallbacks=\"%d\"></micro-puzzle-loader>", t.socketUrl, t.Reader.requestId, t.Reader.hasFallbacks)
 }

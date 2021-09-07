@@ -1,0 +1,1 @@
+import{p as e,b as t}from"./p-f3648cb0.js";(()=>{const t=import.meta.url,n={};return""!==t&&(n.resourcesUrl=new URL(".",t).href),e(n)})().then((e=>t([["p-cdffd310",[[4,"micro-puzzle-element",{name:[1]},[[8,"new-content","eventUpdated"]]],[0,"micro-puzzle-loader",{streamregistername:[1],streamingurl:[1],fallbacks:[2]},[[8,"load-content","loadNewContent"]]]]]],e)));
