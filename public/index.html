@@ -1,18 +1,39 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <style>
+      body {
+        height:100vh; 
+        margin:0; 
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        min-height:50px; 
+        background:lightcyan;
+      }
+      
+      main {
+        flex: 1
+      }
+      footer {
+         min-height:50px;
+      }
+    </style>
       <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0" />
     <script type="module" src="/lib/micropuzzle-components.esm.js"></script>
   </head>
   <body>
-    <h1>Test</h1>
-    <div style="height: 50px; ">
+    <header>
+      <h1>Test</h1>
+    </header>
+    <main class="content">
       {{.Reader.Load "startpage.content" "content"}}
-    </div>
-    <div style="height: 50px; ">
+    </main>
+    <footer style="height: 50px; ">
       {{.Reader.Load "footer" "footer"}}
-    </div>
+    </footer>
     {{.Loader}}
   </body>
 </html>
