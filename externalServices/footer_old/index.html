@@ -1,0 +1,26 @@
+<style>
+  h1 {
+    background-color: red;
+  }
+</style>
+<script type="application/javascript">
+  function load (dest){
+    console.log('click')
+    const event = new CustomEvent('load-content',{
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+      detail: {
+      loading: dest,
+      content: "content"
+    }})
+    // event.emit('load-content', {
+    //   loading: "about.content",
+    //   content: "content"
+    // })
+    document.dispatchEvent(event);
+
+  }
+</script>
+<h1>Footer</h1><a onclick="load('about.content')">about</a>
+<a onclick="load('startpage.content')">start</a>
