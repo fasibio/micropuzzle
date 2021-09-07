@@ -3,7 +3,7 @@
 ## It´s a POC at the moment so by careful by using
 
 ### A microfrontend Proxy which let you start at minutes to build your Application splittet into fragments.
-### Have stable first byte by client always. lazy slow data when its there
+### Have stable first byte by client always. lazy async load data when content its there
 
 ## Quick Getting start. 
 
