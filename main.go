@@ -127,7 +127,7 @@ func main() {
 }
 
 //go:embed micro-lib/*.js
-var embededLib embed.FS
+var embeddedLib embed.FS
 
 type Runner struct{}
 
@@ -157,7 +157,7 @@ func (ru *Runner) Run(c *cli.Context) error {
 		server: &websocketHandler,
 	}
 	r.Get("/micro-puzzle", websocketHandler.LoadFragmentHandler)
-	r.Handle("/micro-lib/*", http.FileServer(http.FS(embededLib)))
+	r.Handle("/micro-lib/*", http.FileServer(http.FS(embeddedLib)))
 	managementChi.Handle("/metrics", promhttp.Handler())
 	f.ChiFileServer(r, "/", http.Dir(c.String(CliPublicFolder)))
 
