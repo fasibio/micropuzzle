@@ -1,22 +1,35 @@
 import React from 'react';
-import { FlowText} from './atoms/Texts'
+import { FlowText, Link } from './atoms/Texts'
+import styled from 'styled-components'
+import { EventLink, EventLinkProps} from './atoms/EventButtons'
+const Root = styled.div`
+  display: flex;
+  align-items:  center;
+  justify-content: space-around;
+  min-height: 50px;
+  background-color: #e3e3e3;
+`
+
+
+
+const routings: EventLinkProps[] = [
+  {
+    fragmentName: "content",
+    loading: "startpage.content",
+    text: "Startpage"
+  },
+  {
+    fragmentName: "content",
+    loading: "about.content",
+    text: "About"
+  },
+]
+
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <FlowText>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </FlowText>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Root>
+      { routings.map(one => <EventLink {...one} />)}
+    </Root>
   );
 }
 
