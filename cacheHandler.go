@@ -21,7 +21,7 @@ type ChacheHandler interface {
 	Del(session, key string) error
 	DelAllForSession(session string) error
 	AddPage(key, value string, ttl time.Duration) error
-	GetPage(key string) (string, error)
+	GetPage(key string) (string, time.Duration, error)
 	AddBlocker(session, key string, value string) error
 	GetBlocker(session, key string) (DataHolder, error)
 	GetAllValuesForSession(keyPattern string) ([]DataHolder, error)
@@ -51,12 +51,17 @@ func (r *RedisHandler) AddPage(key, value string, ttl time.Duration) error {
 	return r.client.Set(r.ctx, r.concatPageKey(key), res, ttl).Err()
 }
 
-func (r *RedisHandler) GetPage(key string) (string, error) {
+func (r *RedisHandler) GetPage(key string) (string, time.Duration, error) {
 	res, err := r.client.Get(r.ctx, r.concatPageKey(key)).Bytes()
 	if err != nil {
-		return "", err
+		return "", time.Duration(0), err
 	}
-	return r.unzip(res)
+	exp := r.client.TTL(r.ctx, r.concatPageKey(key)).Val()
+	val, err := r.unzip(res)
+	if err != nil {
+		return "", time.Duration(0), err
+	}
+	return val, exp, nil
 }
 
 func (r *RedisHandler) getDataHolderByData(key string, value string) DataHolder {

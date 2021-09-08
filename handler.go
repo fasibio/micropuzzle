@@ -41,10 +41,11 @@ type Reader struct {
 }
 
 func (r *Reader) Load(url, content string) string {
-	result, isFallback := r.server.LoadFragment(url, content, r.requestId.String(), r.mainRequest.RemoteAddr, r.mainRequest.Header)
+	result, _, isFallback := r.server.LoadFragment(url, content, r.requestId.String(), r.mainRequest.RemoteAddr, r.mainRequest.Header)
 	if isFallback {
 		r.hasFallbacks = r.hasFallbacks + 1
 	}
+
 	return r.getMicroPuzzleElement(content, result)
 }
 
