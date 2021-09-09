@@ -4,6 +4,8 @@ import (
 	"embed"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"mime"
 	"net/http"
 	"net/http/httputil"
@@ -22,7 +24,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
-	"gopkg.in/ini.v1"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -79,8 +81,8 @@ func main() {
 		&cli.StringFlag{
 			Name:    CliMicrofrontends,
 			EnvVars: []string{getFlagEnvByFlagName(CliMicrofrontends)},
-			Value:   "./config/frontends.ini",
-			Usage:   "A ini file (key=value) key is for logic name of microfrontend. value is the url where to fetch the content (groups are . seperated by using)",
+			Value:   "./config/frontends.yaml",
+			Usage:   "A yaml file to describe available Frontends",
 		},
 		&cli.StringFlag{
 			Name:    CliFallbackLoader,
@@ -124,6 +126,13 @@ func main() {
 	}
 }
 
+type Frontends map[string]map[string]Frontend
+
+type Frontend struct {
+	Url            string `yaml:"url"`
+	StripUrlPrefix bool   `yaml:"stripUrlPrefix"`
+}
+
 //go:embed micro-lib/*.js
 var embeddedLib embed.FS
 
@@ -134,7 +143,12 @@ func (ru *Runner) Run(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	iniF, err := ini.Load(c.String(CliMicrofrontends))
+	frontendsBody, err := ioutil.ReadFile(c.String(CliMicrofrontends))
+	if err != nil {
+		return err
+	}
+	var frontends Frontends
+	err = yaml.Unmarshal(frontendsBody, &frontends)
 	if err != nil {
 		return err
 	}
@@ -152,8 +166,8 @@ func (ru *Runner) Run(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	registerReverseProxy(iniF.Sections(), r)
-	websocketHandler := NewWebSocketHandler(cache, c.Duration(CliTimeout), iniF, c.String(CliFallbackLoader))
+	registerReverseProxy(frontends, r)
+	websocketHandler := NewWebSocketHandler(cache, c.Duration(CliTimeout), frontends, c.String(CliFallbackLoader))
 	socketPath := "socket"
 	r.HandleFunc("/"+socketPath, websocketHandler.Handle)
 	f := FileHandler{
@@ -171,12 +185,12 @@ func (ru *Runner) Run(c *cli.Context) error {
 
 }
 
-func registerReverseProxy(sections []*ini.Section, r chi.Router) {
-	for _, one := range sections {
-		for oneK, oneV := range one.KeysHash() {
+func registerReverseProxy(frontends Frontends, r chi.Router) {
+	for key, one := range frontends {
+		for oneK, oneV := range one {
 			prefix := ""
-			if one.Name() != "DEFAULT" {
-				prefix = one.Name() + "."
+			if key != "global" {
+				prefix = key + "."
 			}
 			err := registerMicrofrontendProxy(r, prefix+oneK, oneV)
 			if err != nil {
@@ -186,14 +200,18 @@ func registerReverseProxy(sections []*ini.Section, r chi.Router) {
 	}
 }
 
-func registerMicrofrontendProxy(r chi.Router, name, destinationUrl string) error {
-	url, err := url.Parse(destinationUrl)
+func registerMicrofrontendProxy(r chi.Router, name string, frontend Frontend) error {
+	url, err := url.Parse(frontend.Url)
 	if err != nil {
 		return err
 	}
+	logger.Get().Infof("Register endpoint /%s/* for frontend %s", name, name)
 	r.HandleFunc(fmt.Sprintf("/%s/*", name), func(w http.ResponseWriter, r *http.Request) {
-		path := strings.Replace(r.URL.String(), "/"+name, "", 1)
-		r.URL, err = url.Parse(path)
+		if frontend.StripUrlPrefix {
+			path := strings.Replace(r.URL.String(), "/"+name, "", 1)
+			r.URL, err = url.Parse(path)
+		}
+		log.Println("hier", r.URL)
 		httputil.NewSingleHostReverseProxy(url).ServeHTTP(w, r)
 	})
 	return nil

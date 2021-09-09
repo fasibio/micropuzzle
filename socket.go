@@ -16,7 +16,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
-	"gopkg.in/ini.v1"
 )
 
 var (
@@ -38,7 +37,7 @@ type WebSocketHandler struct {
 	pubSub            WebSocketBroadcast
 	proxy             proxy.Proxy
 	timeout           time.Duration
-	destinations      *ini.File
+	destinations      Frontends
 	fallbackLoaderKey string
 	user              map[string]WebSocketUser
 	allKnowUserIds    map[string]bool
@@ -99,7 +98,7 @@ func getLoggerWithUserInfo(logs *zap.SugaredLogger, user WebSocketUser) *zap.Sug
 	return logs.With("streamid", user.Id, "address", user.RemoteAddr)
 }
 
-func NewWebSocketHandler(cache *RedisHandler, timeout time.Duration, destinations *ini.File, fallbackLoaderKey string) WebSocketHandler {
+func NewWebSocketHandler(cache *RedisHandler, timeout time.Duration, destinations Frontends, fallbackLoaderKey string) WebSocketHandler {
 	handler := WebSocketHandler{
 		cache:             cache,
 		pubSub:            cache,
@@ -260,10 +259,11 @@ func (sh *WebSocketHandler) updateClientFragment(id, key, value string) {
 
 func (sh *WebSocketHandler) getUrlByFrontendName(name string) string {
 	val := strings.Split(name, ".")
-	if len(val) == 1 {
-		return sh.destinations.Section("").KeysHash()[name]
+	group := "global"
+	if len(val) > 1 {
+		group = val[0]
 	}
-	return sh.destinations.Section(val[0]).KeysHash()[val[1]]
+	return sh.destinations[group][val[len(val)-1]].Url
 }
 
 type AsyncLoadResultChan struct {

@@ -1,5 +1,9 @@
 version: "3.2"
 services:
+  left:
+    build: "./externalServices/left-menu"
+    ports:
+      - "5003:3000"
   footer:
     image: "nginx"
     ports:

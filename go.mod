@@ -16,4 +16,5 @@ require (
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/zap v1.18.1
 	gopkg.in/ini.v1 v1.62.0
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
