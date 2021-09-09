@@ -62,6 +62,7 @@ export function registerCustomElement<P extends BaseProps>({
             }
         }
     }
-
-    customElements.define(name, webComponentClass)
+    if (!customElements.get(name)){
+        customElements.define(name, webComponentClass)
+    }
 }

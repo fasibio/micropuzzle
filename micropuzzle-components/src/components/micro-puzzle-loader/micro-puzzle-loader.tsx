@@ -43,9 +43,20 @@ export class MicroPuzzleLoader {
     }
   }
 
+  private getSocketUrl(): string {
+    const loc = window.location;
+    let new_uri = 'ws:';
+    if (loc.protocol === 'https:') {
+      new_uri = 'wss:';
+    }
+    new_uri += '//' + loc.host;
+    new_uri += loc.pathname + this.streamingurl;
+    return new_uri;
+  }
+
   private startSocketConnection() {
     if (this.socket === undefined || this.socket.readyState !== WebSocket.OPEN) {
-      this.socket = new WebSocket(`${this.streamingurl}?streamid=${this.streamregistername}`);
+      this.socket = new WebSocket(`${this.getSocketUrl}?streamid=${this.streamregistername}`);
       this.socket.onmessage = event => {
         const data = JSON.parse(event.data) as {
           type: string;

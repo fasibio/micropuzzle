@@ -134,6 +134,7 @@ func (sh *WebSocketHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logs.Warnw("Error by create connection", "error", err)
 	}
+
 	for _, v := range values {
 		logs.Infow("Send Data to Client found inside cache", "fragment", v.Content)
 		sh.updateClientFragment(user.Id, v.Content, string(v.Value))

@@ -6,6 +6,8 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,10 +24,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"gopkg.in/ini.v1"
 )
-
-var allowOriginFunc = func(r *http.Request) bool {
-	return true
-}
 
 const (
 	CliFallbackLoader        = "fallbackloader"
@@ -70,7 +68,7 @@ func main() {
 			Name:    CliPort,
 			EnvVars: []string{getFlagEnvByFlagName(CliPort)},
 			Usage:   "port where server will be started",
-			Value:   "3000",
+			Value:   "3300",
 		},
 		&cli.StringFlag{
 			Name:    CliPublicFolder,
@@ -118,7 +116,7 @@ func main() {
 			Name:    CliManagementPort,
 			EnvVars: []string{getFlagEnvByFlagName(CliManagementPort)},
 			Usage:   "Port to get data not needed from client",
-			Value:   3001,
+			Value:   3301,
 		},
 	}
 	if err := app.Run(os.Args); err != nil {
@@ -132,7 +130,10 @@ var embeddedLib embed.FS
 type Runner struct{}
 
 func (ru *Runner) Run(c *cli.Context) error {
-	logger.Initialize(c.String(CliLogLevel))
+	logs, err := logger.Initialize(c.String(CliLogLevel))
+	if err != nil {
+		return err
+	}
 	iniF, err := ini.Load(c.String(CliMicrofrontends))
 	if err != nil {
 		return err
@@ -151,20 +152,51 @@ func (ru *Runner) Run(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	registerReverseProxy(iniF.Sections(), r)
 	websocketHandler := NewWebSocketHandler(cache, c.Duration(CliTimeout), iniF, c.String(CliFallbackLoader))
-	r.HandleFunc("/socket", websocketHandler.Handle)
+	socketPath := "/socket"
+	r.HandleFunc(socketPath, websocketHandler.Handle)
 	f := FileHandler{
-		server: &websocketHandler,
+		server:    &websocketHandler,
+		socketUrl: socketPath,
 	}
 	r.Get("/micro-puzzle", websocketHandler.LoadFragmentHandler)
 	r.Handle("/micro-lib/*", http.FileServer(http.FS(embeddedLib)))
 	managementChi.Handle("/metrics", promhttp.Handler())
 	f.ChiFileServer(r, "/", http.Dir(c.String(CliPublicFolder)))
 
-	logger.Get().Infof("Start Server on Port :%s and Management on port %s", c.String(CliPort), c.String(CliManagementPort))
+	logs.Infof("Start Server on Port :%s and Management on port %s", c.String(CliPort), c.String(CliManagementPort))
 	go http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliManagementPort)), managementChi)
 	return http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliPort)), r)
 
+}
+
+func registerReverseProxy(sections []*ini.Section, r chi.Router) {
+	for _, one := range sections {
+		for oneK, oneV := range one.KeysHash() {
+			prefix := ""
+			if one.Name() != "DEFAULT" {
+				prefix = one.Name() + "."
+			}
+			err := registerMicrofrontendProxy(r, prefix+oneK, oneV)
+			if err != nil {
+				logger.Get().Warnw(fmt.Sprintf("Error by setting Reverseproxy for destination %s", prefix+oneK), "error", err)
+			}
+		}
+	}
+}
+
+func registerMicrofrontendProxy(r chi.Router, name, destinationUrl string) error {
+	url, err := url.Parse(destinationUrl)
+	if err != nil {
+		return err
+	}
+	r.HandleFunc(fmt.Sprintf("/%s/*", name), func(w http.ResponseWriter, r *http.Request) {
+		path := strings.Replace(r.URL.String(), "/"+name, "", 1)
+		r.URL, err = url.Parse(path)
+		httputil.NewSingleHostReverseProxy(url).ServeHTTP(w, r)
+	})
+	return nil
 }
 
 func mimeTypeForFile(file string) string {
@@ -183,7 +215,8 @@ func mimeTypeForFile(file string) string {
 }
 
 type FileHandler struct {
-	server *WebSocketHandler
+	server    *WebSocketHandler
+	socketUrl string
 }
 
 func (filehandler *FileHandler) ChiFileServer(r chi.Router, path string, root http.FileSystem) {
@@ -222,7 +255,7 @@ func (filehandler *FileHandler) handleTemplate(f http.File, dst io.Writer, r *ht
 		return err
 	}
 
-	handler, err := NewTemplateHandler(r, "ws://localhost:3000/socket", id, filehandler.server)
+	handler, err := NewTemplateHandler(r, filehandler.socketUrl, id, filehandler.server)
 	if err != nil {
 		return err
 	}
