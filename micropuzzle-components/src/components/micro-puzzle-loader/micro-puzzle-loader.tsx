@@ -56,7 +56,7 @@ export class MicroPuzzleLoader {
 
   private startSocketConnection() {
     if (this.socket === undefined || this.socket.readyState !== WebSocket.OPEN) {
-      this.socket = new WebSocket(`${this.getSocketUrl}?streamid=${this.streamregistername}`);
+      this.socket = new WebSocket(`${this.getSocketUrl()}?streamid=${this.streamregistername}`);
       this.socket.onmessage = event => {
         const data = JSON.parse(event.data) as {
           type: string;

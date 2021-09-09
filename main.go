@@ -154,8 +154,8 @@ func (ru *Runner) Run(c *cli.Context) error {
 	}
 	registerReverseProxy(iniF.Sections(), r)
 	websocketHandler := NewWebSocketHandler(cache, c.Duration(CliTimeout), iniF, c.String(CliFallbackLoader))
-	socketPath := "/socket"
-	r.HandleFunc(socketPath, websocketHandler.Handle)
+	socketPath := "socket"
+	r.HandleFunc("/"+socketPath, websocketHandler.Handle)
 	f := FileHandler{
 		server:    &websocketHandler,
 		socketUrl: socketPath,
