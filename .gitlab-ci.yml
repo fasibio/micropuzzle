@@ -53,6 +53,8 @@ buildWebComponents:
   cache:
     paths:
       - micro-lib
+  tags:
+    - dockerfasibio
 
 buildServer: 
    stage: buildServer
