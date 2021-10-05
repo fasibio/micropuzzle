@@ -11,6 +11,23 @@ variables:
     - master
 .goImage: 
   image: golang:1.17.1  
+
+
+buildWebComponents:
+  stage: buildFrontend
+  extends: .onlyTags
+  image: node
+  script: 
+    - cd micropuzzle-components
+    - yarn
+    - yarn build
+  cache:
+    paths:
+      - micro-lib
+  tags:
+    - dockerfasibio
+
+
 # Unit and integration tests
 test:
   stage: test
@@ -41,20 +58,6 @@ test:
 #       - ./cov.out
  
 # build binary
-
-buildWebComponents:
-  stage: buildFrontend
-  extends: .onlyTags
-  image: node
-  script: 
-    - cd micropuzzle-components
-    - yarn
-    - yarn build
-  cache:
-    paths:
-      - micro-lib
-  tags:
-    - dockerfasibio
 
 buildServer: 
    stage: buildServer
@@ -122,9 +125,9 @@ publishMaster:
 
 
 stages:
+  - buildFrontend
   - test
   # - sonarqube
-  - buildFrontend
   - buildServer
   - buildImage
   - publish
