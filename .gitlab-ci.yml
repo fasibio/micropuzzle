@@ -1,0 +1,128 @@
+variables:
+   RAILS_ENV: test
+   IMAGE_NAME: fasibio/micropuzzle
+   SONAR_NAME: fasibio_micropuzzle_
+   #SONAR_HOST: https://sonar.server2.fasibio.de
+
+.onlyTags:
+  only:
+    - /^([0-9]{0,3})\.([0-9]{0,3})\.([0-9]{0,3})$/
+    - /^rc_([0-9]{0,3})\.([0-9]{0,3})\.([0-9]{0,3}).*/
+    - master
+.goImage: 
+  image: golang:1.17.1  
+# Unit and integration tests
+test:
+  stage: test
+  extends: 
+    - .onlyTags
+    - .goImage
+  tags: 
+    - dockerfasibio
+  script:
+   - go test ./... -coverprofile=cov.out
+   - go tool cover -func cov.out  
+  coverage: /^total:\t+\(statements\)\t+(\d+\.\d+)%/
+  artifacts: 
+   paths: 
+     - ./cov.out
+
+# sonar upload
+# uploadSonarqube: 
+#   image: ciricihq/gitlab-sonar-scanner
+#   stage: sonarqube
+#   script:
+#     - sonar-scanner -Dsonar.projectKey=${SONAR_NAME}${CI_COMMIT_REF_NAME} -Dsonar.sources=. -Dsonar.host.url=${SONAR_HOST} -Dsonar.login=$sonarqubelogin
+#   extends: .onlyTags
+#   tags:
+#     - dockerfasibio
+#   artifacts: 
+#     paths: 
+#       - ./cov.out
+ 
+# build binary
+
+buildWebComponents:
+  stage: buildFrontend
+  extends: .onlyTags
+  image: node
+  script: 
+    - cd micropuzzle-components
+    - yarn
+    - yarn build
+  cache:
+    paths:
+      - micro-lib
+
+buildServer: 
+   stage: buildServer
+   extends: 
+    - .onlyTags
+    - .goImage
+   tags:
+     - dockerfasibio
+   script: 
+     - GO111MODULE=on CGO_ENABLED=0 GOOS=linux go build -mod vendor -a -installsuffix cgo -o micropuzzle .
+   cache:
+     paths:
+       - micropuzzle
+
+# build Docker Image for explizit versions and release candidates
+buildImageTag: 
+   stage: buildImage
+   only:
+    - /^([0-9]{0,3})\.([0-9]{0,3})\.([0-9]{0,3})$/
+    - /^rc_([0-9]{0,3})\.([0-9]{0,3})\.([0-9]{0,3}).*/
+   tags:
+     - dockerfasibio
+   image: docker
+   script: 
+     - docker build --build-arg buildNumber=${CI_PIPELINE_IID} -t ${IMAGE_NAME}:${CI_COMMIT_REF_NAME} .
+
+# push docker image to hub.docker.com for explizit versions and release candidates
+publishTag: 
+  stage: publish
+  image: docker
+  only:
+    - /^([0-9]{0,3})\.([0-9]{0,3})\.([0-9]{0,3})$/
+    - /^rc_([0-9]{0,3})\.([0-9]{0,3})\.([0-9]{0,3}).*/
+  tags:
+    - dockerfasibio
+  script: 
+    - docker login -u ${dockerhubuser} -p ${dockerhubpassword}
+    - docker push ${IMAGE_NAME}:${CI_COMMIT_REF_NAME}
+
+# build latest stable version of docker image 
+buildImageMaster: 
+   stage: buildImage
+   only:
+    - master
+   tags:
+     - dockerfasibio
+   image: docker
+   cache:
+     paths:
+       - funk_server
+   script: 
+     - docker build --build-arg buildNumber=${CI_PIPELINE_IID} -t ${IMAGE_NAME}:latest .
+
+# publish latest stable version to hub.docker.com
+publishMaster: 
+  stage: publish
+  image: docker
+  only:
+    - master
+  tags:
+    - dockerfasibio
+  script: 
+    - docker login -u ${dockerhubuser} -p ${dockerhubpassword}
+    - docker push ${IMAGE_NAME}:latest
+
+
+stages:
+  - test
+  # - sonarqube
+  - buildFrontend
+  - buildServer
+  - buildImage
+  - publish
