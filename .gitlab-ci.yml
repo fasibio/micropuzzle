@@ -21,7 +21,9 @@ buildWebComponents:
     - cd micropuzzle-components
     - yarn
     - yarn build
-  cache:
+    - cd ..
+    - ls 
+  artifacts:
     paths:
       - micro-lib
   tags:
