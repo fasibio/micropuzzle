@@ -11,40 +11,52 @@ variables:
     - master
 .goImage: 
   image: golang:1.17.1  
-
+.tags:
+  tags:
+    - dockerfasibio
 
 buildWebComponents:
   stage: buildFrontend
-  extends: .onlyTags
+  extends:
+    - .onlyTags
+    - .tags
   image: node
   script: 
     - cd micropuzzle-components
     - yarn
     - yarn build
-    - cd ..
-    - ls 
   artifacts:
     paths:
       - micro-lib
-  tags:
-    - dockerfasibio
 
-
+vendor: 
+  stage: vendor
+  extends: 
+    - .onlyTags
+    - .goImage
+    - .tags
+  script: 
+    - go mod vendor
+  cache:
+     paths:
+      - vendor
 # Unit and integration tests
 test:
   stage: test
   extends: 
     - .onlyTags
     - .goImage
-  tags: 
-    - dockerfasibio
+    - .tags
   script:
    - go test ./... -coverprofile=cov.out
    - go tool cover -func cov.out  
   coverage: /^total:\t+\(statements\)\t+(\d+\.\d+)%/
   artifacts: 
    paths: 
-     - ./cov.out
+    - ./cov.out
+  cache:
+   paths:
+    - vendor
 
 # sonar upload
 # uploadSonarqube: 
@@ -66,13 +78,15 @@ buildServer:
    extends: 
     - .onlyTags
     - .goImage
-   tags:
-     - dockerfasibio
+    - .tags
    script: 
      - GO111MODULE=on CGO_ENABLED=0 GOOS=linux go build -mod vendor -a -installsuffix cgo -o micropuzzle .
-   cache:
+   artifacts:
      paths:
        - micropuzzle
+   cache:
+     paths:
+      - vendor
 
 # build Docker Image for explizit versions and release candidates
 buildImageTag: 
@@ -80,8 +94,8 @@ buildImageTag:
    only:
     - /^([0-9]{0,3})\.([0-9]{0,3})\.([0-9]{0,3})$/
     - /^rc_([0-9]{0,3})\.([0-9]{0,3})\.([0-9]{0,3}).*/
-   tags:
-     - dockerfasibio
+   extends: 
+    - .tags
    image: docker
    script: 
      - docker build --build-arg buildNumber=${CI_PIPELINE_IID} -t ${IMAGE_NAME}:${CI_COMMIT_REF_NAME} .
@@ -93,8 +107,8 @@ publishTag:
   only:
     - /^([0-9]{0,3})\.([0-9]{0,3})\.([0-9]{0,3})$/
     - /^rc_([0-9]{0,3})\.([0-9]{0,3})\.([0-9]{0,3}).*/
-  tags:
-    - dockerfasibio
+  extends: 
+    - .tags
   script: 
     - docker login -u ${dockerhubuser} -p ${dockerhubpassword}
     - docker push ${IMAGE_NAME}:${CI_COMMIT_REF_NAME}
@@ -104,8 +118,8 @@ buildImageMaster:
    stage: buildImage
    only:
     - master
-   tags:
-     - dockerfasibio
+   extends: 
+    - .tags
    image: docker
    cache:
      paths:
@@ -119,14 +133,15 @@ publishMaster:
   image: docker
   only:
     - master
-  tags:
-    - dockerfasibio
+  extends: 
+    - .tags
   script: 
     - docker login -u ${dockerhubuser} -p ${dockerhubpassword}
     - docker push ${IMAGE_NAME}:latest
 
 
 stages:
+  - vendor
   - buildFrontend
   - test
   # - sonarqube
