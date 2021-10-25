@@ -15,6 +15,6 @@ require (
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/zap v1.18.1
-	gopkg.in/ini.v1 v1.62.0
-	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/ini.v1 v1.62.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0
 )

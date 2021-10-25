@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"mime"
 	"net/http"
 	"net/http/httputil"
@@ -211,7 +210,6 @@ func registerMicrofrontendProxy(r chi.Router, name string, frontend Frontend) er
 			path := strings.Replace(r.URL.String(), "/"+name, "", 1)
 			r.URL, err = url.Parse(path)
 		}
-		log.Println("hier", r.URL)
 		httputil.NewSingleHostReverseProxy(url).ServeHTTP(w, r)
 	})
 	return nil

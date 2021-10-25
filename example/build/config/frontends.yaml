@@ -1,0 +1,17 @@
+global:
+  footer:
+    url: http://footer
+    stripUrlPrefix: true
+  fallback:
+    url: http://localhost:3300/loader.html
+    stripUrlPrefix: true
+startpage:
+  content:
+    url: http://startpage_content:6500
+    stripUrlPrefix: true
+  left:
+    url: http://left:3000/startpage.left
+    stripUrlPrefix: true 
+about:
+  content:
+    url: http://about_content:6500

@@ -1,3 +1,12 @@
+# Micropuzzle documentation
+
+This is an example how to build a fragment with next.js. <br/>
+You have to change: 
+- Add to next.config.js ==> basePath:"/name.ofRegisterMircopuzzle" take a look to [frontends.yaml](../../config/frontends.yaml) there is startpage.left configured.
+- Add to next.config.js ==> reactStrictMode: true,
+
+# Next.js documentation
+
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started

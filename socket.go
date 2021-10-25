@@ -176,7 +176,7 @@ func (sh *WebSocketHandler) handleMessages(user WebSocketUser) {
 		var messages Message
 		err := user.Connection.ReadJSON(&messages)
 		if err != nil {
-			logs.Infow("error by read json message", "error", err)
+			logs.Debugw("error by read json message", "error", err)
 			sh.pubSub.Publish(PubSubCommandRemoveUser, user.Id)
 			go sh.cache.DelAllForSession(user.Id)
 			break
@@ -211,7 +211,7 @@ func (sh *WebSocketHandler) onLoadFragment(user WebSocketUser, msg LoadFragmentP
 func (sh *WebSocketHandler) LoadFragmentHandler(w http.ResponseWriter, r *http.Request) {
 	fragment := r.URL.Query().Get("fragment")
 	frontend := r.URL.Query().Get("frontend")
-	userId := r.URL.Query().Get("streamid")
+	userId := r.Header.Get("streamid")
 	content, cache, isFallback := sh.LoadFragment(fragment, frontend, userId, r.RemoteAddr, r.Header)
 	c, err := json.Marshal(NewFragmentPayload{
 		Key:        frontend,

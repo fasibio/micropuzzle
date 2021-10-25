@@ -5,11 +5,9 @@ services:
     ports:
       - "5003:3000"
   footer:
-    image: "nginx"
+    build: "./externalServices/footer"
     ports:
       - "5000:80"
-    volumes:
-      - ./externalServices/footer/build:/usr/share/nginx/html:Z
   startpage_content:
     build: "./externalServices/startpage_content"
     ports:

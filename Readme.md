@@ -35,15 +35,15 @@ COMMANDS:
 GLOBAL OPTIONS:
    --timeoutms value       Timeout for loading Microfrontends (for all slower, it will be use streaming to bring it to the client) (default: 45ms) [$MICROPUZZLE_TIMEOUTMS]
    --logLevel value        Loglevel debug, info, warn, error (default: "info") [$MICROPUZZLE_LOGLEVEL]
-   --port value            port where server will be started (default: "3000") [$MICROPUZZLE_PORT]
+   --port value            port where server will be started (default: "3300") [$MICROPUZZLE_PORT]
    --publicfoder value     Folder where all html js css from server directly will be foundable (Public folder for the web) (default: "./public") [$MICROPUZZLE_PUBLICFODER]
-   --microfrontends value  A ini file (key=value) key is for logic name of microfrontend. value is the url where to fetch the content (groups are . seperated by using) (default: "./config/frontends.ini") [$MICROPUZZLE_MICROFRONTENDS]
+   --microfrontends value  A yaml file to describe available Frontends (default: "./config/frontends.yaml") [$MICROPUZZLE_MICROFRONTENDS]
    --fallbackloader value  key of inifile where to find fallbackhtml which will shown if microfrontend is lower than timeout (default: "fallback") [$MICROPUZZLE_FALLBACKLOADER]
    --redisaddr value       The domian/ip:port of redis (default: "localhost:6379") [$MICROPUZZLE_REDISADDR]
    --redisuser value       Username to connect to redis [$MICROPUZZLE_REDISUSER]
    --redispassword value   Password to connect to redis [$MICROPUZZLE_REDISPASSWORD]
    --redisdb value         Db to use by redis (default: 0) [$MICROPUZZLE_REDISDB]
-   --managementport value  Port to get data not needed from client (default: 3001) [$MICROPUZZLE_MANAGEMENTPORT]
+   --managementport value  Port to get data not needed from client (default: 3301) [$MICROPUZZLE_MANAGEMENTPORT]
    --help, -h              show help (default: false)
 
 ```
@@ -51,7 +51,7 @@ GLOBAL OPTIONS:
 
 ## Configure your possible available Microfrontends
 with `--microfrontends` (or over Environment `MICROPUZZLE_MICROFRONTENDS`) you can set the destination of an inifile. 
-Inside this file you can configure with logic fragment have which url to load the content. [example](/config/frontends.ini)
+Inside this file you can configure with logic fragment have which url to load the content. [example](/config/frontends.yaml)
 
 ## Configure your frontend scarlett
 with `--publicfolder` (or over Environment `MICROPUZZLE_PUBLICFODER`) you can set the folder where to find root index.html template
