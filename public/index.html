@@ -3,21 +3,39 @@
   <head>
     <style>
       body {
-        height:100vh; 
-        margin:0; 
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: [line1] 40px [line2] 50px [line3] auto [col4-start] 50px [five] 40px [end];
+        grid-template-rows: [row1] auto [row2] 1fr [row3] auto [last-row];
       }
+
       header {
-        min-height:50px; 
-        background:lightcyan;
+        grid-column-start: line1;
+        grid-column-end: span end;
+        grid-row-start: row1;
+        grid-row-end: span row2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       
-      main {
-        flex: 1
+      main.left {
+        grid-column-start: line1;
+        grid-column-end: span line3;
+        grid-row-start: row2;
+        grid-row-end: span row3;
+      }
+
+      main.content {
+        grid-column-start: line3;
+        grid-column-end: span end;
+        grid-row-start: row2;
+        grid-row-end: row3;
       }
       footer {
-         min-height:50px;
+        grid-column-start: line1;
+        grid-column-end: span end;
+        grid-row-start: row3;
+        grid-row-end: span last-row;
       }
     </style>
       <meta charset="utf-8" />
@@ -26,7 +44,7 @@
   </head>
   <body>
     <header>
-      <h1>Test</h1>
+      <h1>Static Header</h1>
     </header>
     <main class="left">
       {{.Reader.Load "startpage.left" "left"}}
@@ -34,7 +52,7 @@
     <main class="content">
       {{.Reader.Load "startpage.content" "content"}}
     </main>
-    <footer style="height: 50px; ">
+    <footer>
       {{.Reader.Load "footer" "footer"}}
     </footer>
     {{.Loader}}
