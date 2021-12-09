@@ -41,6 +41,13 @@ const (
 	EnvPrefix         string = "MICROPUZZLE_"
 )
 
+const (
+	SOCKET_PATH      = "socket"
+	SOCKET_ENDPOINT  = "/micro-puzzle"
+	LIB_ENDPOINT     = "/micro-lib/*"
+	METRICS_ENDPOINT = "/metrics"
+)
+
 func getFlagEnvByFlagName(flagName string) string {
 	return EnvPrefix + strings.ToUpper(flagName)
 }
@@ -142,19 +149,14 @@ func (ru *Runner) Run(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	frontendsBody, err := ioutil.ReadFile(c.String(CliMicrofrontends))
-	if err != nil {
-		return err
-	}
-	var frontends Frontends
-	err = yaml.Unmarshal(frontendsBody, &frontends)
+	frontends, err := loadFrontends(c.String(CliMicrofrontends))
 	if err != nil {
 		return err
 	}
 	r := chi.NewRouter()
-	managementChi := chi.NewRouter()
 	r.Use(chiprometheus.NewMiddleware("micropuzzle"))
 	r.Use(middleware.Compress(5))
+	registerReverseProxy(frontends, r)
 
 	cache, err := NewRedisHandler(&redis.Options{
 		Addr:     c.String(CliRedisAddress),
@@ -165,23 +167,36 @@ func (ru *Runner) Run(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	registerReverseProxy(frontends, r)
 	websocketHandler := NewWebSocketHandler(cache, c.Duration(CliTimeout), frontends, c.String(CliFallbackLoader))
-	socketPath := "socket"
-	r.HandleFunc("/"+socketPath, websocketHandler.Handle)
+
+	r.HandleFunc("/"+SOCKET_PATH, websocketHandler.Handle)
 	f := FileHandler{
 		server:    &websocketHandler,
-		socketUrl: socketPath,
+		socketUrl: SOCKET_PATH,
 	}
-	r.Get("/micro-puzzle", websocketHandler.LoadFragmentHandler)
-	r.Handle("/micro-lib/*", http.FileServer(http.FS(embeddedLib)))
-	managementChi.Handle("/metrics", promhttp.Handler())
+	r.Get(SOCKET_ENDPOINT, websocketHandler.LoadFragmentHandler)
+	r.Handle(LIB_ENDPOINT, http.FileServer(http.FS(embeddedLib)))
 	f.ChiFileServer(r, "/", http.Dir(c.String(CliPublicFolder)))
 
 	logs.Infof("Start Server on Port :%s and Management on port %s", c.String(CliPort), c.String(CliManagementPort))
-	go http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliManagementPort)), managementChi)
+	managementR := chi.NewRouter()
+	managementR.Handle(METRICS_ENDPOINT, promhttp.Handler())
+	go http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliManagementPort)), managementR)
 	return http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliPort)), r)
 
+}
+
+func loadFrontends(frontendsPath string) (Frontends, error) {
+	frontendsBody, err := ioutil.ReadFile(frontendsPath)
+	if err != nil {
+		return nil, err
+	}
+	var frontends Frontends
+	err = yaml.Unmarshal(frontendsBody, &frontends)
+	if err != nil {
+		return nil, err
+	}
+	return frontends, nil
 }
 
 func registerReverseProxy(frontends Frontends, r chi.Router) {
