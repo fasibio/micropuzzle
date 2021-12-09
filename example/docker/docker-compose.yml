@@ -1,0 +1,22 @@
+version: "3.2"
+services:
+  micropuzzle:
+    image: fasibio/micropuzzle:latest
+    ports:
+      - "3300:3300" #Client port
+      - "3301:3301" # Management port
+    environment:
+      - MICROPUZZLE_REDISADDR=redis:6379
+    volumes:
+      - "./config:/config"
+      - "./public:/public"
+  redis:
+    image: redis
+  left:
+    build: "../../externalServices/left-menu"
+  footer:
+    build: "../../externalServices/footer"
+  startpage_content:
+    build: "../../externalServices/startpage_content"
+  about_content:
+    build: "../../externalServices/about_content"
