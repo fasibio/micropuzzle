@@ -3,9 +3,12 @@
   <head>
     <style>
       body {
+        margin: 0px;
         display: grid;
-        grid-template-columns: [line1] 40px [line2] 50px [line3] auto [col4-start] 50px [five] 40px [end];
-        grid-template-rows: [row1] auto [row2] 100% [row3] auto [last-row];
+        grid-template-columns: [line1] minmax(10px, 1fr) [line2] minmax(10px, 3fr) [line3] auto;
+        grid-template-rows: [row1] min-content [row2] 1fr [row3] min-content [last-row];
+        gap: 1px;
+        height: 100vh;
       }
 
       header {
