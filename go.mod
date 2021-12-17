@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/766b/chi-prometheus v0.0.0-20180509160047-46ac2b31aa30
+	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/go-chi/chi v1.5.4
 	github.com/go-redis/redis/v8 v8.11.3
 	github.com/gofrs/uuid v4.0.0+incompatible
@@ -17,6 +18,7 @@ require (
 )
 
 require (
+	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
@@ -30,6 +32,7 @@ require (
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
+	golang.org/x/net v0.0.0-20210916014120-12bc252f5db8 // indirect
 	golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 )

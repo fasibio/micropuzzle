@@ -367,15 +367,24 @@ func (sh *WebSocketHandler) loadAsync(options loadAsyncOptions) {
 		fromCache = true
 	} else {
 		res, cache, err := sh.proxy.Get(url, options.Header, options.RemoteAddr)
+		if err != nil {
+			logger.Get().Warnw("Error by get data from Microserviceurl", "error", err)
+			return
+		}
+		data, err := ChangePathOfRessources(string(res), options.Frontend)
+		if err != nil {
+			logger.Get().Warnw("Error by change path of ressources", "error", err)
+			data = (string(res))
+		}
 		if cache.Expires > 0 {
-			sh.cache.AddPage(options.Frontend, string(res), cache.Expires)
+			sh.cache.AddPage(options.Frontend, data, cache.Expires)
 		}
 		if err != nil {
 			logger.Get().Warnw("error by load url", "url", url, "error", err)
 			return
 		}
 
-		fragment := string(res)
+		fragment := string(data)
 		sh.handleFragmentContent(options, fragment, cache)
 	}
 	sh.writePromMessage(options, fromCache, len(options.Timeout) == 1, start)

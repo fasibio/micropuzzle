@@ -1,16 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"mime"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -225,9 +228,40 @@ func registerMicrofrontendProxy(r chi.Router, name string, frontend Frontend) er
 			path := strings.Replace(r.URL.String(), "/"+name, "", 1)
 			r.URL, err = url.Parse(path)
 		}
-		httputil.NewSingleHostReverseProxy(url).ServeHTTP(w, r)
+		p := httputil.NewSingleHostReverseProxy(url)
+		p.ModifyResponse = rewriteBodyHandler("/" + name)
+		p.ServeHTTP(w, r)
 	})
 	return nil
+}
+func rewriteBodyHandler(prefix string) func(*http.Response) error {
+	return func(resp *http.Response) (err error) {
+		b, err := ioutil.ReadAll(resp.Body) //Read html
+		if err != nil {
+			return err
+		}
+		log.Println("rewriteBodyHandler", resp.Request.URL.String(), resp.StatusCode)
+		err = resp.Body.Close()
+		if err != nil {
+			return err
+		}
+		var res string
+		if strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
+			res, err = ChangePathOfRessources(string(b), prefix)
+			if err != nil {
+				return err
+			}
+		} else if strings.Contains(resp.Header.Get("Content-Type"), "text/css") {
+			res = ChangePathOfRessourcesCss(string(b), prefix)
+		} else {
+			res = string(b)
+		}
+		body := ioutil.NopCloser(bytes.NewReader([]byte(res)))
+		resp.Body = body
+		resp.ContentLength = int64(len(b))
+		resp.Header.Set("Content-Length", strconv.Itoa(len(b)))
+		return nil
+	}
 }
 
 func mimeTypeForFile(file string) string {

@@ -10,7 +10,7 @@ startpage:
     url: http://localhost:5001
     stripUrlPrefix: true
   left:
-    url: http://localhost:5003/startpage.left
+    url: http://localhost:5003
     stripUrlPrefix: true
 about:
   content:
