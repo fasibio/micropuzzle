@@ -1,13 +1,14 @@
-package main
+package templatehandling
 
 import (
 	"fmt"
 	"net/http"
 
+	"github.com/fasibio/micropuzzle/fragments"
 	"github.com/gofrs/uuid"
 )
 
-func NewTemplateHandler(r *http.Request, socketUrl string, id uuid.UUID, server *WebSocketHandler) (*TemplateHandler, error) {
+func NewTemplateHandler(r *http.Request, socketUrl string, id uuid.UUID, server *fragments.FragmentHandler) (*TemplateHandler, error) {
 
 	return &TemplateHandler{
 		socketUrl: socketUrl,
@@ -34,7 +35,7 @@ func (t *TemplateHandler) Loader() string {
 }
 
 type Reader struct {
-	server       *WebSocketHandler
+	server       *fragments.FragmentHandler
 	mainRequest  *http.Request
 	requestId    uuid.UUID
 	hasFallbacks int64

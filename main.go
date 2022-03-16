@@ -1,32 +1,24 @@
 package main
 
 import (
-	"bytes"
 	"embed"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"log"
-	"mime"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	chiprometheus "github.com/766b/chi-prometheus"
+	"github.com/fasibio/micropuzzle/cache"
+	"github.com/fasibio/micropuzzle/configloader"
+	"github.com/fasibio/micropuzzle/fragments"
 	"github.com/fasibio/micropuzzle/logger"
+	"github.com/fasibio/micropuzzle/proxy"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-redis/redis/v8"
-	"github.com/gofrs/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
-	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -135,13 +127,6 @@ func main() {
 	}
 }
 
-type Frontends map[string]map[string]Frontend
-
-type Frontend struct {
-	Url            string `yaml:"url"`
-	StripUrlPrefix bool   `yaml:"stripUrlPrefix"`
-}
-
 //go:embed micro-lib/*.js
 var embeddedLib embed.FS
 
@@ -152,16 +137,16 @@ func (ru *Runner) Run(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	frontends, err := loadFrontends(c.String(CliMicrofrontends))
+	r := chi.NewRouter()
+	frontends, err := configloader.LoadFrontends(c.String(CliMicrofrontends))
 	if err != nil {
 		return err
 	}
-	r := chi.NewRouter()
 	r.Use(chiprometheus.NewMiddleware("micropuzzle"))
 	r.Use(middleware.Compress(5))
-	registerReverseProxy(frontends, r)
+	proxy.RegisterReverseProxy(r, frontends)
 
-	cache, err := NewRedisHandler(&redis.Options{
+	cache, err := cache.NewRedisHandler(&redis.Options{
 		Addr:     c.String(CliRedisAddress),
 		DB:       c.Int(CliRedisDb),
 		Username: c.String(CliRedisUser),
@@ -170,164 +155,23 @@ func (ru *Runner) Run(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	websocketHandler := NewWebSocketHandler(cache, c.Duration(CliTimeout), frontends, c.String(CliFallbackLoader))
-
-	r.HandleFunc("/"+SOCKET_PATH, websocketHandler.Handle)
+	fragmentHandler := fragments.NewFragmentHandler(cache, c.Duration(CliTimeout), frontends, c.String(CliFallbackLoader))
+	fragmentHandler.RegisterHandler(r, SOCKET_PATH, SOCKET_ENDPOINT)
 	f := FileHandler{
-		server:    &websocketHandler,
+		server:    &fragmentHandler,
 		socketUrl: SOCKET_PATH,
 	}
-	r.Get(SOCKET_ENDPOINT, websocketHandler.LoadFragmentHandler)
 	r.Handle(LIB_ENDPOINT, http.FileServer(http.FS(embeddedLib)))
 	f.ChiFileServer(r, "/", http.Dir(c.String(CliPublicFolder)))
 
 	logs.Infof("Start Server on Port :%s and Management on port %s", c.String(CliPort), c.String(CliManagementPort))
-	managementR := chi.NewRouter()
-	managementR.Handle(METRICS_ENDPOINT, promhttp.Handler())
-	go http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliManagementPort)), managementR)
+	go ru.StartManagementEndpoint(c.String(CliManagementPort))
 	return http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliPort)), r)
 
 }
 
-func loadFrontends(frontendsPath string) (Frontends, error) {
-	frontendsBody, err := ioutil.ReadFile(frontendsPath)
-	if err != nil {
-		return nil, err
-	}
-	var frontends Frontends
-	err = yaml.Unmarshal(frontendsBody, &frontends)
-	if err != nil {
-		return nil, err
-	}
-	return frontends, nil
-}
-
-func registerReverseProxy(frontends Frontends, r chi.Router) {
-	for key, one := range frontends {
-		for oneK, oneV := range one {
-			prefix := ""
-			if key != "global" {
-				prefix = key + "."
-			}
-			err := registerMicrofrontendProxy(r, prefix+oneK, oneV)
-			if err != nil {
-				logger.Get().Warnw(fmt.Sprintf("Error by setting Reverseproxy for destination %s", prefix+oneK), "error", err)
-			}
-		}
-	}
-}
-
-func registerMicrofrontendProxy(r chi.Router, name string, frontend Frontend) error {
-	url, err := url.Parse(frontend.Url)
-	if err != nil {
-		return err
-	}
-	logger.Get().Infof("Register endpoint /%s/* for frontend %s", name, name)
-	r.HandleFunc(fmt.Sprintf("/%s/*", name), func(w http.ResponseWriter, r *http.Request) {
-		if frontend.StripUrlPrefix {
-			path := strings.Replace(r.URL.String(), "/"+name, "", 1)
-			r.URL, err = url.Parse(path)
-		}
-		p := httputil.NewSingleHostReverseProxy(url)
-		p.ModifyResponse = rewriteBodyHandler("/" + name)
-		p.ServeHTTP(w, r)
-	})
-	return nil
-}
-func rewriteBodyHandler(prefix string) func(*http.Response) error {
-	return func(resp *http.Response) (err error) {
-		b, err := ioutil.ReadAll(resp.Body) //Read html
-		if err != nil {
-			return err
-		}
-		log.Println("rewriteBodyHandler", resp.Request.URL.String(), resp.StatusCode)
-		err = resp.Body.Close()
-		if err != nil {
-			return err
-		}
-		var res string
-		if strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
-			res, err = ChangePathOfRessources(string(b), prefix)
-			if err != nil {
-				return err
-			}
-		} else if strings.Contains(resp.Header.Get("Content-Type"), "text/css") {
-			res = ChangePathOfRessourcesCss(string(b), prefix)
-		} else {
-			res = string(b)
-		}
-		body := ioutil.NopCloser(bytes.NewReader([]byte(res)))
-		resp.Body = body
-		resp.ContentLength = int64(len(b))
-		resp.Header.Set("Content-Length", strconv.Itoa(len(b)))
-		return nil
-	}
-}
-
-func mimeTypeForFile(file string) string {
-	ext := filepath.Ext(file)
-	switch ext {
-	case ".htm", ".html":
-		return "text/html"
-	case ".css":
-		return "text/css"
-	case ".js":
-		return "application/javascript"
-
-	default:
-		return mime.TypeByExtension(ext)
-	}
-}
-
-type FileHandler struct {
-	server    *WebSocketHandler
-	socketUrl string
-}
-
-func (filehandler *FileHandler) ChiFileServer(r chi.Router, path string, root http.FileSystem) {
-
-	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		if path == "/" {
-			path = "/index.html"
-		}
-		f, err := root.Open(path)
-		mimetype := mimeTypeForFile(path)
-		w.Header().Set("Content-Type", mimetype)
-		if err == nil {
-			if mimetype == "application/javascript" {
-				io.Copy(w, f)
-				return
-			}
-			err := filehandler.handleTemplate(f, w, r)
-			if err != nil {
-				logger.Get().Warnw("Error handle template", "error", err)
-			}
-		} else {
-			w.WriteHeader(http.StatusNotFound)
-		}
-	})
-}
-
-func (filehandler *FileHandler) handleTemplate(f http.File, dst io.Writer, r *http.Request) error {
-
-	text, err := io.ReadAll(f)
-	if err != nil {
-		return err
-	}
-	id, err := uuid.NewV4()
-	if err != nil {
-		return err
-	}
-
-	handler, err := NewTemplateHandler(r, filehandler.socketUrl, id, filehandler.server)
-	if err != nil {
-		return err
-	}
-	tmpl, err := template.New("httptemplate").Parse(string(text))
-	if err != nil {
-		return err
-	}
-
-	return tmpl.Execute(dst, handler)
+func (r *Runner) StartManagementEndpoint(port string) {
+	managementR := chi.NewRouter()
+	managementR.Handle(METRICS_ENDPOINT, promhttp.Handler())
+	http.ListenAndServe(fmt.Sprintf(":%s", port), managementR)
 }

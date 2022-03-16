@@ -1,4 +1,4 @@
-package main
+package cache
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 
 const MaxTTL = 30 * time.Second
 
-type ChacheHandler interface {
+type CacheHandler interface {
 	Add(session, key string, value string) error
 	Get(session, key string) (DataHolder, error)
 	Del(session, key string) error
@@ -121,7 +121,7 @@ func (r *RedisHandler) On(channel string, handler SubscriptionHandler) {
 
 func (r *RedisHandler) Subscribe() error {
 	channels := []string{}
-	for one, _ := range r.handler {
+	for one := range r.handler {
 		channels = append(channels, one)
 	}
 	res := r.client.Subscribe(r.ctx, channels...)
