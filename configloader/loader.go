@@ -10,8 +10,7 @@ import (
 type Frontends map[string]map[string]Frontend
 
 type Frontend struct {
-	Url            string `yaml:"url"`
-	StripUrlPrefix bool   `yaml:"stripUrlPrefix"`
+	Url string `yaml:"url"`
 }
 
 // Find out url from configuration yaml by point seperated name (f.e. "startpage.content")

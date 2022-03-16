@@ -16,10 +16,14 @@ import (
 
 var upgrader = websocket.Upgrader{} // use default options
 
+type FragmentHandling interface {
+	LoadFragment(frontend, fragmentName, userId, remoteAddr string, header http.Header) (string, proxy.CacheInformation, bool)
+}
+
 type FragmentHandler struct {
 	cache             cache.CacheHandler
 	pubSub            cache.WebSocketBroadcast
-	proxy             proxy.Proxy
+	proxy             proxy.ProxyHandling
 	timeout           time.Duration
 	destinations      configloader.Frontends
 	fallbackLoaderKey string
@@ -33,10 +37,15 @@ type Message struct {
 }
 
 type WebSocketUser struct {
-	Connection   *websocket.Conn
+	Connection   ConnectionHandler
 	Id           string
 	RemoteHeader http.Header
 	RemoteAddr   string
+}
+
+type ConnectionHandler interface {
+	ReadJSON(v interface{}) error
+	WriteJSON(v interface{}) error
 }
 
 type loadAsyncOptions struct {
@@ -52,7 +61,7 @@ type loadAsyncOptions struct {
 
 type AsyncLoadResultChan struct {
 	Value string
-	Cache proxy.CacheingInformation
+	Cache proxy.CacheInformation
 }
 
 const (
@@ -79,7 +88,7 @@ func NewFragmentHandler(cache *cache.RedisHandler, timeout time.Duration, destin
 	handler := FragmentHandler{
 		cache:             cache,
 		pubSub:            cache,
-		proxy:             proxy.Proxy{},
+		proxy:             &proxy.Proxy{},
 		timeout:           timeout,
 		destinations:      destinations,
 		fallbackLoaderKey: fallbackLoaderKey,
@@ -107,7 +116,7 @@ func (sh *FragmentHandler) writeFragmentToClient(user WebSocketUser, payload *Ne
 // remoteAddr which comes from client (needed for proxy)
 // header comes from client
 // It retruns the content and a bool if is a fallback and not the microfrontent content
-func (sh *FragmentHandler) LoadFragment(frontend, fragmentName, userId, remoteAddr string, header http.Header) (string, proxy.CacheingInformation, bool) {
+func (sh *FragmentHandler) LoadFragment(frontend, fragmentName, userId, remoteAddr string, header http.Header) (string, proxy.CacheInformation, bool) {
 	uuid, err := uuid.NewV4()
 	if err != nil {
 		logger.Get().Warnw("Unexpected error happens by gernerate uuid", "error", err)
@@ -147,7 +156,7 @@ func (sh *FragmentHandler) LoadFragment(frontend, fragmentName, userId, remoteAd
 				Frontend:     sh.fallbackLoaderKey,
 			}, true, true, start)
 			promLoadFragmentsTime.WithLabelValues(fragmentName, sh.fallbackLoaderKey, "true", "true").Observe(float64(time.Since(start).Nanoseconds()) / 1000000)
-			return cachedValue, proxy.CacheingInformation{Expires: time.Duration(0)}, true
+			return cachedValue, proxy.CacheInformation{Expires: time.Duration(0)}, true
 		}
 		res, cache, err := sh.proxy.Get(sh.destinations.GetUrlByFrontendName(sh.fallbackLoaderKey), header, remoteAddr)
 		if cache.Expires > 0 {
@@ -158,14 +167,14 @@ func (sh *FragmentHandler) LoadFragment(frontend, fragmentName, userId, remoteAd
 			Frontend:     sh.fallbackLoaderKey,
 		}, false, true, start)
 		if err != nil {
-			return "Loading ...", proxy.CacheingInformation{Expires: time.Duration(0)}, true
+			return "Loading ...", proxy.CacheInformation{Expires: time.Duration(0)}, true
 		}
 
-		return string(res), proxy.CacheingInformation{Expires: time.Duration(0)}, true
+		return string(res), proxy.CacheInformation{Expires: time.Duration(0)}, true
 	}
 }
 
-func (sh *FragmentHandler) handleFragmentContent(options loadAsyncOptions, content string, cache proxy.CacheingInformation) {
+func (sh *FragmentHandler) handleFragmentContent(options loadAsyncOptions, content string, cache proxy.CacheInformation) {
 	data, err := sh.cache.GetBlocker(options.UserId, options.FragmentName)
 	if err != nil {
 		logger.Get().Infow("Error by get blockerdata from cache this is not an error at all it also could mean other content was faster at loading", "error", err, "FragmentName", options.FragmentName)
@@ -190,7 +199,7 @@ func (sh *FragmentHandler) loadAsync(options loadAsyncOptions) {
 	if err == nil {
 		header := make(http.Header)
 		header.Set("Cache-Control", fmt.Sprintf("max-age=%.0f;", expire.Seconds()))
-		sh.handleFragmentContent(options, cachedValue, proxy.CacheingInformation{Expires: expire, Header: header})
+		sh.handleFragmentContent(options, cachedValue, proxy.CacheInformation{Expires: expire, Header: header})
 		fromCache = true
 	} else {
 		res, cache, err := sh.proxy.Get(url, options.Header, options.RemoteAddr)

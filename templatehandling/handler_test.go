@@ -2,33 +2,23 @@ package templatehandling
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestReader_getMicroPuzzleElement(t *testing.T) {
-	type args struct {
-		name    string
-		content string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "Test result by given params",
-			args: args{
-				name:    "test_name",
-				content: "test:content",
-			},
-			want: "<micro-puzzle-element name=\"test_name\"><template>test:content</template></micro-puzzle-element>",
+func TestTemplateHandler_ScriptLoader(t *testing.T) {
+	handler := TemplateHandler{}
+	assert.Equal(t, handler.ScriptLoader(), "<script type=\"module\" src=\"/micro-lib/micropuzzle-components.esm.js\"></script>")
+}
+
+func TestTemplateHandler_Loader(t *testing.T) {
+	s := [16]byte{65, 66, 67, 226, 130, 172}
+	handler := TemplateHandler{
+		socketUrl: "socket_url",
+		Reader: Reader{
+			requestId:    s,
+			hasFallbacks: 0,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &Reader{}
-			if got := r.getMicroPuzzleElement(tt.args.name, tt.args.content); got != tt.want {
-				t.Errorf("Reader.getMicroPuzzleElement() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assert.Equal(t, handler.Loader(), "<micro-puzzle-loader streamingUrl=\"socket_url\" streamRegisterName=\"414243e2-82ac-0000-0000-000000000000\" fallbacks=\"0\"></micro-puzzle-loader>")
 }

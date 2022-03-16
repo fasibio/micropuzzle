@@ -1,5 +1,6 @@
 micro-lib
 vendor
 cov.out
+cover.out
 micropuzzle
 doc/micropuzzle_presentation*.png

@@ -23,9 +23,13 @@ var hopHeaders = []string{
 	"Upgrade",
 }
 
-type CacheingInformation struct {
+type CacheInformation struct {
 	Expires time.Duration
 	Header  http.Header
+}
+
+type ProxyHandling interface {
+	Get(url string, header http.Header, remoteAddr string) ([]byte, CacheInformation, error)
 }
 
 type Proxy struct {
@@ -55,7 +59,7 @@ func (p *Proxy) appendHostToXForwardHeader(header http.Header, host string) {
 	header.Set("X-Forwarded-For", host)
 }
 
-func (p *Proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, CacheingInformation, error) {
+func (p *Proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, CacheInformation, error) {
 	client := &http.Client{}
 	p.delHopHeaders(header)
 
@@ -67,7 +71,7 @@ func (p *Proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, 
 	resp, err := client.Do(req1)
 
 	if err != nil {
-		return nil, CacheingInformation{Expires: time.Duration(0)}, err
+		return nil, CacheInformation{Expires: time.Duration(0)}, err
 	}
 	defer resp.Body.Close()
 
@@ -89,5 +93,5 @@ func (p *Proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, 
 
 	}
 	content, err := io.ReadAll(reader)
-	return content, CacheingInformation{Expires: diff, Header: resp.Header}, err
+	return content, CacheInformation{Expires: diff, Header: resp.Header}, err
 }

@@ -17,7 +17,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
-func RegisterReverseProxy(r chi.Router, frontends configloader.Frontends) {
+func RegisterReverseProxy(r *chi.Mux, frontends configloader.Frontends) {
 	for key, one := range frontends {
 		for oneK, oneV := range one {
 			prefix := ""
@@ -32,17 +32,15 @@ func RegisterReverseProxy(r chi.Router, frontends configloader.Frontends) {
 	}
 }
 
-func registerMicrofrontendProxy(r chi.Router, name string, frontend configloader.Frontend) error {
+func registerMicrofrontendProxy(r *chi.Mux, name string, frontend configloader.Frontend) error {
 	url, err := url.Parse(frontend.Url)
 	if err != nil {
 		return err
 	}
 	logger.Get().Infof("Register endpoint /%s/* for frontend %s", name, name)
 	r.HandleFunc(fmt.Sprintf("/%s/*", name), func(w http.ResponseWriter, r *http.Request) {
-		if frontend.StripUrlPrefix {
-			path := strings.Replace(r.URL.String(), "/"+name, "", 1)
-			r.URL, err = url.Parse(path)
-		}
+		path := strings.Replace(r.URL.String(), "/"+name, "", 1)
+		r.URL, err = url.Parse(path)
 		p := httputil.NewSingleHostReverseProxy(url)
 		p.ModifyResponse = rewriteBodyHandler("/" + name)
 		p.ServeHTTP(w, r)
