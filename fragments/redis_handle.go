@@ -1,5 +1,8 @@
 package fragments
 
+/**
+Publishing methods to push data to redis
+**/
 import (
 	"encoding/json"
 
