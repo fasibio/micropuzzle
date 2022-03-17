@@ -24,13 +24,6 @@ const (
 	EnvPrefix         string = "MICROPUZZLE_"
 )
 
-const (
-	SOCKET_PATH      = "socket"
-	SOCKET_ENDPOINT  = "/micro-puzzle"
-	LIB_ENDPOINT     = "/micro-lib/*"
-	METRICS_ENDPOINT = "/metrics"
-)
-
 func getFlagEnvByFlagName(flagName string) string {
 	return EnvPrefix + strings.ToUpper(flagName)
 }

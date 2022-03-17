@@ -13,12 +13,11 @@ import (
 )
 
 type FileHandler struct {
-	server    *fragments.FragmentHandler
+	server    fragments.FragmentHandling
 	socketUrl string
 }
 
-func (filehandler *FileHandler) ChiFileServer(r chi.Router, path string, root http.FileSystem) {
-
+func (filehandler *FileHandler) RegsiterFileHandler(r chi.Router, path string, root http.FileSystem) {
 	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		if path == "/" {

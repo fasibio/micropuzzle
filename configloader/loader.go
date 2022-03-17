@@ -24,6 +24,20 @@ func (f Frontends) GetUrlByFrontendName(name string) string {
 	return f[group][val[len(val)-1]].Url
 }
 
+func (f Frontends) GetKeyList() []string {
+	var keys []string
+	for k, v := range f {
+		for frontend := range v {
+			if (k == "global") || (k == "") {
+				keys = append(keys, frontend)
+				continue
+			}
+			keys = append(keys, k+"."+frontend)
+		}
+	}
+	return keys
+}
+
 func LoadFrontends(frontendsPath string) (Frontends, error) {
 	frontendsBody, err := ioutil.ReadFile(frontendsPath)
 	if err != nil {

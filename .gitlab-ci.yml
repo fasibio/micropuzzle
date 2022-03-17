@@ -98,7 +98,7 @@ buildImageTag:
     - .tags
    image: docker
    script: 
-     - docker build --build-arg buildNumber=${CI_PIPELINE_IID} -t ${IMAGE_NAME}:${CI_COMMIT_REF_NAME} .
+     - docker build --build-arg commit_sha=${CI_COMMIT_SHORT_SHA} --build-arg application_build_id=${CI_PIPELINE_IID} -t ${IMAGE_NAME}:${CI_COMMIT_REF_NAME} .
 
 # push docker image to hub.docker.com for explizit versions and release candidates
 publishTag: 

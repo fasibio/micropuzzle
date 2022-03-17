@@ -2,8 +2,10 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	chiprometheus "github.com/766b/chi-prometheus"
 	"github.com/fasibio/micropuzzle/cache"
@@ -16,6 +18,20 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
+)
+
+/* Customer endpoints */
+const (
+	SOCKET_PATH     = "socket"
+	SOCKET_ENDPOINT = "/micro-puzzle"
+	LIB_ENDPOINT    = "/micro-lib/*"
+)
+
+/* Management endpoints*/
+const (
+	METRICS_ENDPOINT   = "/metrics"
+	HEALTH_ENDPOINT    = "/health"
+	FRONTENDS_ENDPOINT = "/frontends"
 )
 
 //go:embed micro-lib/*.js
@@ -53,16 +69,41 @@ func (ru *Runner) Run(c *cli.Context) error {
 		socketUrl: SOCKET_PATH,
 	}
 	r.Handle(LIB_ENDPOINT, http.FileServer(http.FS(embeddedLib)))
-	f.ChiFileServer(r, "/", http.Dir(c.String(CliPublicFolder)))
+	f.RegsiterFileHandler(r, "/", http.Dir(c.String(CliPublicFolder)))
 
 	logs.Infof("Start Server on Port :%s and Management on port %s", c.String(CliPort), c.String(CliManagementPort))
-	go ru.StartManagementEndpoint(c.String(CliManagementPort))
+	go ru.StartManagementEndpoint(c.String(CliManagementPort), frontends)
 	return http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliPort)), r)
 
 }
 
-func (r *Runner) StartManagementEndpoint(port string) {
+type FrontedsManagementResult struct {
+	Frontends []string `json:"frontends"`
+}
+
+type HealthCheckObj struct {
+	GitHash     string `json:"git_hash"`
+	Version     string `json:"version"`
+	ServiceName string `json:"service_name"`
+}
+
+func (r *Runner) StartManagementEndpoint(port string, frontends configloader.Frontends) {
 	managementR := chi.NewRouter()
 	managementR.Handle(METRICS_ENDPOINT, promhttp.Handler())
+	managementR.Get(HEALTH_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(HealthCheckObj{
+			GitHash:     os.Getenv("COMMIT_SHA"),
+			Version:     os.Getenv("APPLICATION_BUILD_ID"),
+			ServiceName: "mircopuzzle",
+		})
+	})
+	managementR.Get(FRONTENDS_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(FrontedsManagementResult{
+			Frontends: frontends.GetKeyList(),
+		})
+	})
+
 	http.ListenAndServe(fmt.Sprintf(":%s", port), managementR)
 }

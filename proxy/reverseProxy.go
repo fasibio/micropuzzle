@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -16,6 +15,8 @@ import (
 	"github.com/fasibio/micropuzzle/resultmanipulation"
 	"github.com/go-chi/chi"
 )
+
+// TODO perhaps clash with normal server own routes (e.g. /footer/*) is registered but the public folder can have a footer folder as well
 
 func RegisterReverseProxy(r *chi.Mux, frontends configloader.Frontends) {
 	for key, one := range frontends {
@@ -50,11 +51,10 @@ func registerMicrofrontendProxy(r *chi.Mux, name string, frontend configloader.F
 
 func rewriteBodyHandler(prefix string) func(*http.Response) error {
 	return func(resp *http.Response) (err error) {
-		b, err := ioutil.ReadAll(resp.Body) //Read html
+		b, err := ioutil.ReadAll(resp.Body) //TODO Read html only if header contains manipulation possibilities
 		if err != nil {
 			return err
 		}
-		log.Println("rewriteBodyHandler", resp.Request.URL.String(), resp.StatusCode)
 		err = resp.Body.Close()
 		if err != nil {
 			return err

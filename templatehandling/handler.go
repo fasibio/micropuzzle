@@ -8,8 +8,7 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-func NewTemplateHandler(r *http.Request, socketUrl string, id uuid.UUID, server *fragments.FragmentHandler) (*TemplateHandler, error) {
-
+func NewTemplateHandler(r *http.Request, socketUrl string, id uuid.UUID, server fragments.FragmentHandling) (*TemplateHandler, error) {
 	return &TemplateHandler{
 		socketUrl: socketUrl,
 		Reader: Reader{
