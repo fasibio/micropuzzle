@@ -32,7 +32,7 @@ func TestReader_getMicroPuzzleElement(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Reader{}
+			r := &reader{}
 			if got := r.getMicroPuzzleElement(tt.args.name, tt.args.content); got != tt.want {
 				t.Errorf("Reader.getMicroPuzzleElement() = %v, want %v", got, tt.want)
 			}
@@ -69,14 +69,11 @@ func (s ReaderTestSuite) TestReader_Load() {
 	s.Run("Happy Path", func() {
 		mockObj := new(MockedFragmentHandler)
 		mockObj.On("LoadFragment", frontend, fragmentName, id.String(), remoteAddr, httpHeaderMock).Return("result", proxy.CacheInformation{}, false)
-		reader := Reader{
-			server:    mockObj,
-			requestId: id,
-			mainRequest: &http.Request{
-				RemoteAddr: remoteAddr,
-				Header:     httpHeaderMock,
-			},
-		}
+		reader := NewReader(mockObj, &http.Request{
+			RemoteAddr: remoteAddr,
+			Header:     httpHeaderMock,
+		}, id)
+
 		result := reader.Load(frontend, fragmentName)
 		assert.Equal(s.T(), result, "<micro-puzzle-element name=\"fragmentName\"><template>result</template></micro-puzzle-element>")
 		mockObj.AssertExpectations(s.T())
@@ -84,10 +81,10 @@ func (s ReaderTestSuite) TestReader_Load() {
 	s.Run("Loading need To long so fallback will be returned", func() {
 		mockObj := new(MockedFragmentHandler)
 		mockObj.On("LoadFragment", frontend, fragmentName, id.String(), remoteAddr, httpHeaderMock).Return("fallbackhtml", proxy.CacheInformation{}, true)
-		reader := Reader{
-			server:       mockObj,
-			requestId:    id,
-			hasFallbacks: 0,
+		reader := reader{
+			server:    mockObj,
+			requestId: id,
+			fallbacks: 0,
 			mainRequest: &http.Request{
 				RemoteAddr: remoteAddr,
 				Header:     httpHeaderMock,
@@ -96,7 +93,7 @@ func (s ReaderTestSuite) TestReader_Load() {
 		result := reader.Load(frontend, fragmentName)
 		assert.Equal(s.T(), result, "<micro-puzzle-element name=\"fragmentName\"><template>fallbackhtml</template></micro-puzzle-element>")
 		mockObj.AssertExpectations(s.T())
-		assert.Equal(s.T(), reader.hasFallbacks, int64(1))
+		assert.Equal(s.T(), reader.fallbacks, int64(1))
 	})
 
 }

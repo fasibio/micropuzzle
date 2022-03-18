@@ -3,7 +3,9 @@ package templatehandling
 import (
 	"testing"
 
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestTemplateHandler_ScriptLoader(t *testing.T) {
@@ -11,14 +13,35 @@ func TestTemplateHandler_ScriptLoader(t *testing.T) {
 	assert.Equal(t, handler.ScriptLoader(), "<script type=\"module\" src=\"/micro-lib/micropuzzle-components.esm.js\"></script>")
 }
 
+type ReaderMock struct {
+	mock.Mock
+}
+
+func (r *ReaderMock) Load(url string, content string) string {
+	args := r.Called(url, content)
+	return args.String(0)
+}
+
+func (r *ReaderMock) GetRequestId() uuid.UUID {
+	args := r.Called()
+	return args.Get(0).(uuid.UUID)
+}
+
+func (r *ReaderMock) GetFallbacks() int64 {
+	args := r.Called()
+	return args.Get(0).(int64)
+}
+
 func TestTemplateHandler_Loader(t *testing.T) {
-	s := [16]byte{65, 66, 67, 226, 130, 172}
+
+	readerMock := new(ReaderMock)
+	id := uuid.Must(uuid.NewV4())
+
+	readerMock.On("GetRequestId").Return(id)
+	readerMock.On("GetFallbacks").Return(int64(0))
 	handler := TemplateHandler{
 		socketUrl: "socket_url",
-		Reader: Reader{
-			requestId:    s,
-			hasFallbacks: 0,
-		},
+		Reader:    readerMock,
 	}
-	assert.Equal(t, handler.Loader(), "<micro-puzzle-loader streamingUrl=\"socket_url\" streamRegisterName=\"414243e2-82ac-0000-0000-000000000000\" fallbacks=\"0\"></micro-puzzle-loader>")
+	assert.Equal(t, handler.Loader(), "<micro-puzzle-loader streamingUrl=\"socket_url\" streamRegisterName=\""+id.String()+"\" fallbacks=\"0\"></micro-puzzle-loader>")
 }

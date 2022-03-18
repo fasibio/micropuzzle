@@ -20,17 +20,6 @@ type FragmentHandling interface {
 	LoadFragment(frontend, fragmentName, userId, remoteAddr string, header http.Header) (string, proxy.CacheInformation, bool)
 }
 
-type FragmentHandler struct {
-	cache             cache.CacheHandler
-	pubSub            cache.WebSocketBroadcast
-	proxy             proxy.ProxyHandling
-	timeout           time.Duration
-	destinations      configloader.Frontends
-	fallbackLoaderKey string
-	user              map[string]WebSocketUser
-	allKnowUserIds    map[string]bool
-}
-
 type Message struct {
 	Type string      `json:"type,omitempty"`
 	Data interface{} `json:"data,omitempty"`
@@ -72,23 +61,34 @@ const (
 	PubSubCommandRemoveUser   = "remove_user"  //string ==> streamId
 )
 
-type NewFragmentPayload struct {
+type newFragmentPayload struct {
 	Key        string `json:"key,omitempty"`
 	Value      string `json:"value,omitempty"`
 	IsFallback bool   `json:"isFallback,omitempty"`
 }
 
-type LoadFragmentPayload struct {
+type loadFragmentPayload struct {
 	Content     string `json:"content,omitempty"`
 	Loading     string `json:"loading,omitempty"`
 	ExtraHeader map[string][]string
 }
 
-func NewFragmentHandler(cache *cache.RedisHandler, timeout time.Duration, destinations configloader.Frontends, fallbackLoaderKey string) FragmentHandler {
-	handler := FragmentHandler{
+type fragmentHandler struct {
+	cache             cache.CacheHandler
+	pubSub            cache.WebSocketBroadcast
+	proxy             proxy.ProxyHandling
+	timeout           time.Duration
+	destinations      configloader.Frontends
+	fallbackLoaderKey string
+	user              map[string]WebSocketUser
+	allKnowUserIds    map[string]bool
+}
+
+func NewFragmentHandler(cache cache.CacheHandler, pubSub cache.WebSocketBroadcast, timeout time.Duration, destinations configloader.Frontends, fallbackLoaderKey string) fragmentHandler {
+	handler := fragmentHandler{
 		cache:             cache,
-		pubSub:            cache,
-		proxy:             &proxy.Proxy{},
+		pubSub:            pubSub,
+		proxy:             proxy.NewProxy(),
 		timeout:           timeout,
 		destinations:      destinations,
 		fallbackLoaderKey: fallbackLoaderKey,
@@ -103,7 +103,7 @@ func NewFragmentHandler(cache *cache.RedisHandler, timeout time.Duration, destin
 	return handler
 }
 
-func (sh *FragmentHandler) writeFragmentToClient(user WebSocketUser, payload *NewFragmentPayload) error {
+func (sh *fragmentHandler) writeFragmentToClient(user WebSocketUser, payload *newFragmentPayload) error {
 	return user.Connection.WriteJSON(Message{Type: SocketCommandNewContent, Data: payload})
 }
 
@@ -116,7 +116,7 @@ func (sh *FragmentHandler) writeFragmentToClient(user WebSocketUser, payload *Ne
 // remoteAddr which comes from client (needed for proxy)
 // header comes from client
 // It retruns the content and a bool if is a fallback and not the microfrontent content
-func (sh *FragmentHandler) LoadFragment(frontend, fragmentName, userId, remoteAddr string, header http.Header) (string, proxy.CacheInformation, bool) {
+func (sh *fragmentHandler) LoadFragment(frontend, fragmentName, userId, remoteAddr string, header http.Header) (string, proxy.CacheInformation, bool) {
 	uuid, err := uuid.NewV4()
 	if err != nil {
 		logger.Get().Warnw("Unexpected error happens by gernerate uuid", "error", err)
@@ -174,7 +174,7 @@ func (sh *FragmentHandler) LoadFragment(frontend, fragmentName, userId, remoteAd
 	}
 }
 
-func (sh *FragmentHandler) handleFragmentContent(options loadAsyncOptions, content string, cache proxy.CacheInformation) {
+func (sh *fragmentHandler) handleFragmentContent(options loadAsyncOptions, content string, cache proxy.CacheInformation) {
 	data, err := sh.cache.GetBlocker(options.UserId, options.FragmentName)
 	if err != nil {
 		logger.Get().Infow("Error by get blockerdata from cache this is not an error at all it also could mean other content was faster at loading", "error", err, "FragmentName", options.FragmentName)
@@ -191,7 +191,7 @@ func (sh *FragmentHandler) handleFragmentContent(options loadAsyncOptions, conte
 	}
 }
 
-func (sh *FragmentHandler) loadAsync(options loadAsyncOptions) {
+func (sh *fragmentHandler) loadAsync(options loadAsyncOptions) {
 	start := time.Now()
 	url := sh.destinations.GetUrlByFrontendName(options.Frontend)
 	cachedValue, expire, err := sh.cache.GetPage(options.Frontend)

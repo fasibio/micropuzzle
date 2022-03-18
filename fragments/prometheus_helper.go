@@ -19,6 +19,6 @@ func init() {
 	prometheus.MustRegister(promLoadFragmentsTime)
 }
 
-func (sh *FragmentHandler) writePromMessage(options loadAsyncOptions, fromCache, insideTimeout bool, start time.Time) {
+func (sh *fragmentHandler) writePromMessage(options loadAsyncOptions, fromCache, insideTimeout bool, start time.Time) {
 	promLoadFragmentsTime.WithLabelValues(options.FragmentName, options.Frontend, strconv.FormatBool(insideTimeout), strconv.FormatBool(fromCache)).Observe(float64(time.Since(start).Nanoseconds()) / 1000000)
 }

@@ -28,10 +28,6 @@ func (f Frontends) GetKeyList() []string {
 	var keys []string
 	for k, v := range f {
 		for frontend := range v {
-			if (k == "global") || (k == "") {
-				keys = append(keys, frontend)
-				continue
-			}
 			keys = append(keys, k+"."+frontend)
 		}
 	}

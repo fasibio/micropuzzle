@@ -10,6 +10,7 @@ import (
 	chiprometheus "github.com/766b/chi-prometheus"
 	"github.com/fasibio/micropuzzle/cache"
 	"github.com/fasibio/micropuzzle/configloader"
+	"github.com/fasibio/micropuzzle/filehandler"
 	"github.com/fasibio/micropuzzle/fragments"
 	"github.com/fasibio/micropuzzle/logger"
 	"github.com/fasibio/micropuzzle/proxy"
@@ -37,9 +38,13 @@ const (
 //go:embed micro-lib/*.js
 var embeddedLib embed.FS
 
-type Runner struct{}
+type runner struct{}
 
-func (ru *Runner) Run(c *cli.Context) error {
+func NewRunner() *runner {
+	return &runner{}
+}
+
+func (ru *runner) Run(c *cli.Context) error {
 	logs, err := logger.Initialize(c.String(CliLogLevel))
 	if err != nil {
 		return err
@@ -62,14 +67,12 @@ func (ru *Runner) Run(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fragmentHandler := fragments.NewFragmentHandler(cache, c.Duration(CliTimeout), frontends, c.String(CliFallbackLoader))
+	fragmentHandler := fragments.NewFragmentHandler(cache, cache, c.Duration(CliTimeout), frontends, c.String(CliFallbackLoader))
 	fragmentHandler.RegisterHandler(r, SOCKET_PATH, SOCKET_ENDPOINT)
-	f := FileHandler{
-		server:    &fragmentHandler,
-		socketUrl: SOCKET_PATH,
-	}
+	f := filehandler.NewFileHandler(&fragmentHandler, SOCKET_PATH)
+
 	r.Handle(LIB_ENDPOINT, http.FileServer(http.FS(embeddedLib)))
-	f.RegsiterFileHandler(r, "/", http.Dir(c.String(CliPublicFolder)))
+	f.RegisterFileHandler(r, "/", http.Dir(c.String(CliPublicFolder)))
 
 	logs.Infof("Start Server on Port :%s and Management on port %s", c.String(CliPort), c.String(CliManagementPort))
 	go ru.StartManagementEndpoint(c.String(CliManagementPort), frontends)
@@ -87,7 +90,7 @@ type HealthCheckObj struct {
 	ServiceName string `json:"service_name"`
 }
 
-func (r *Runner) StartManagementEndpoint(port string, frontends configloader.Frontends) {
+func (r *runner) StartManagementEndpoint(port string, frontends configloader.Frontends) {
 	managementR := chi.NewRouter()
 	managementR.Handle(METRICS_ENDPOINT, promhttp.Handler())
 	managementR.Get(HEALTH_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {

@@ -10,30 +10,55 @@ import (
 )
 
 const (
-	CliFallbackLoader        = "fallbackloader"
-	CliMicrofrontends        = "microfrontends"
-	CliPublicFolder          = "publicfoder"
-	CliTimeout               = "timeoutms"
-	CliLogLevel              = "logLevel"
-	CliPort                  = "port"
-	CliManagementPort        = "managementport"
-	CliRedisAddress          = "redisaddr"
-	CliRedisUser             = "redisuser"
-	CliRedisPassword         = "redispassword"
-	CliRedisDb               = "redisdb"
-	EnvPrefix         string = "MICROPUZZLE_"
+	CliFallbackLoader = "fallbackloader"
+	CliMicrofrontends = "microfrontends"
+	CliPublicFolder   = "publicfoder"
+	CliTimeout        = "timeoutms"
+	CliLogLevel       = "logLevel"
+	CliPort           = "port"
+	CliManagementPort = "managementport"
+	CliRedisAddress   = "redisaddr"
+	CliRedisUser      = "redisuser"
+	CliRedisPassword  = "redispassword"
+	CliRedisDb        = "redisdb"
+)
+
+const (
+	CliGenDestination = "destination"
+	CliGenUrl         = "url"
 )
 
 func getFlagEnvByFlagName(flagName string) string {
-	return EnvPrefix + strings.ToUpper(flagName)
+	return strings.ToUpper(flagName)
 }
 
 func main() {
 	app := cli.NewApp()
 	app.Name = "Micropuzzle"
-
+	runner := NewRunner()
+	app.Commands = []*cli.Command{
+		{
+			Name:    "generateType",
+			Aliases: []string{"gen"},
+			Usage:   "Generate Typescript types",
+			Action:  runner.GenerateType,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    CliGenDestination,
+					EnvVars: []string{getFlagEnvByFlagName(CliGenDestination)},
+					Usage:   "Destination folder for generated files",
+					Aliases: []string{"dest"},
+					Value:   "./micropuzzle",
+				},
+				&cli.StringFlag{
+					Name:    CliGenUrl,
+					EnvVars: []string{getFlagEnvByFlagName(CliGenUrl)},
+					Usage:   "URL to the microfrontends server management port. f.e. http://localhost:3301",
+				},
+			},
+		},
+	}
 	app.Description = "Application to combine Server Side Include and Afterloading"
-	runner := Runner{}
 	app.Action = runner.Run
 	app.Flags = []cli.Flag{
 		&cli.DurationFlag{

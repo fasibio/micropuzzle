@@ -43,7 +43,24 @@ type DataHolder struct {
 	Session string
 }
 
-func (r *RedisHandler) AddPage(key, value string, ttl time.Duration) error {
+type redisHandler struct {
+	client  *redis.Client
+	ctx     context.Context
+	handler map[string][]SubscriptionHandler
+	Prefix  string
+}
+
+func NewRedisHandler(opt *redis.Options) (*redisHandler, error) {
+	rdb := redis.NewClient(opt)
+	return &redisHandler{
+		client:  rdb,
+		ctx:     context.Background(),
+		Prefix:  "MICROPUZZLE_",
+		handler: make(map[string][]SubscriptionHandler),
+	}, nil
+}
+
+func (r *redisHandler) AddPage(key, value string, ttl time.Duration) error {
 	res, err := r.zip(value)
 	if err != nil {
 		return err
@@ -51,7 +68,7 @@ func (r *RedisHandler) AddPage(key, value string, ttl time.Duration) error {
 	return r.client.Set(r.ctx, r.concatPageKey(key), res, ttl).Err()
 }
 
-func (r *RedisHandler) GetPage(key string) (string, time.Duration, error) {
+func (r *redisHandler) GetPage(key string) (string, time.Duration, error) {
 	res, err := r.client.Get(r.ctx, r.concatPageKey(key)).Bytes()
 	if err != nil {
 		return "", time.Duration(0), err
@@ -64,7 +81,7 @@ func (r *RedisHandler) GetPage(key string) (string, time.Duration, error) {
 	return val, exp, nil
 }
 
-func (r *RedisHandler) getDataHolderByData(key string, value string) DataHolder {
+func (r *redisHandler) getDataHolderByData(key string, value string) DataHolder {
 	keys := strings.Split(strings.Replace(key, fmt.Sprintf("%s_", r.Prefix), "", 1), "_")
 	return DataHolder{
 		Value:   value,
@@ -74,7 +91,7 @@ func (r *RedisHandler) getDataHolderByData(key string, value string) DataHolder 
 	}
 }
 
-func (r *RedisHandler) getDataHolderByBlockerData(key string, value string) DataHolder {
+func (r *redisHandler) getDataHolderByBlockerData(key string, value string) DataHolder {
 	keys := strings.Split(strings.Replace(key, fmt.Sprintf("%s_", r.Prefix), "", 1), "_")
 	return DataHolder{
 		Value:   value,
@@ -84,33 +101,15 @@ func (r *RedisHandler) getDataHolderByBlockerData(key string, value string) Data
 	}
 }
 
-type RedisHandler struct {
-	client  *redis.Client
-	ctx     context.Context
-	handler map[string][]SubscriptionHandler
-	Prefix  string
-}
-
-func NewRedisHandler(opt *redis.Options) (*RedisHandler, error) {
-	rdb := redis.NewClient(opt)
-	return &RedisHandler{
-		client:  rdb,
-		ctx:     context.Background(),
-		Prefix:  "MICROPUZZLE_",
-		handler: make(map[string][]SubscriptionHandler),
-	}, nil
-
-}
-
-func (r *RedisHandler) Publish(channel string, message interface{}) error {
+func (r *redisHandler) Publish(channel string, message interface{}) error {
 	return r.client.Publish(r.ctx, r.PrefixChannel(channel), message).Err()
 }
 
-func (r *RedisHandler) PrefixChannel(channel string) string {
+func (r *redisHandler) PrefixChannel(channel string) string {
 	return fmt.Sprintf("%s%s", r.Prefix, channel)
 }
 
-func (r *RedisHandler) On(channel string, handler SubscriptionHandler) {
+func (r *redisHandler) On(channel string, handler SubscriptionHandler) {
 	pChannel := r.PrefixChannel(channel)
 	_, ok := r.handler[pChannel]
 	if !ok {
@@ -119,7 +118,7 @@ func (r *RedisHandler) On(channel string, handler SubscriptionHandler) {
 	r.handler[pChannel] = append(r.handler[pChannel], handler)
 }
 
-func (r *RedisHandler) Subscribe() error {
+func (r *redisHandler) Subscribe() error {
 	channels := []string{}
 	for one := range r.handler {
 		channels = append(channels, one)
@@ -133,7 +132,7 @@ func (r *RedisHandler) Subscribe() error {
 	return nil
 }
 
-func (r *RedisHandler) send2Handler(msg *redis.Message) {
+func (r *redisHandler) send2Handler(msg *redis.Message) {
 	v, ok := r.handler[msg.Channel]
 	if ok {
 		for _, one := range v {
@@ -142,7 +141,7 @@ func (r *RedisHandler) send2Handler(msg *redis.Message) {
 	}
 }
 
-func (r *RedisHandler) zip(value string) ([]byte, error) {
+func (r *redisHandler) zip(value string) ([]byte, error) {
 	var b bytes.Buffer
 	gz := gzip.NewWriter(&b)
 	if _, err := gz.Write([]byte(value)); err != nil {
@@ -154,7 +153,7 @@ func (r *RedisHandler) zip(value string) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (r *RedisHandler) unzip(value []byte) (string, error) {
+func (r *redisHandler) unzip(value []byte) (string, error) {
 	var b bytes.Buffer
 	b.Write(value)
 	gzreader, err := gzip.NewReader(&b)
@@ -170,14 +169,14 @@ func (r *RedisHandler) unzip(value []byte) (string, error) {
 	return string(output), err
 }
 
-func (r *RedisHandler) Add(session, key string, value string) error {
+func (r *redisHandler) Add(session, key string, value string) error {
 	v, err := r.zip(value)
 	if err != nil {
 		return err
 	}
 	return r.client.Set(r.ctx, r.concatKey(session, key), v, MaxTTL).Err()
 }
-func (r *RedisHandler) Get(session, key string) (DataHolder, error) {
+func (r *redisHandler) Get(session, key string) (DataHolder, error) {
 	res, err := r.client.Get(r.ctx, r.concatKey(session, key)).Bytes()
 	if err != nil {
 		return DataHolder{}, err
@@ -189,11 +188,11 @@ func (r *RedisHandler) Get(session, key string) (DataHolder, error) {
 
 	return r.getDataHolderByData(r.concatKey(session, key), unZipres), nil
 }
-func (r *RedisHandler) Del(session, key string) error {
+func (r *redisHandler) Del(session, key string) error {
 	return r.client.Del(r.ctx, r.concatKey(session, key)).Err()
 }
 
-func (r *RedisHandler) DelAllForSession(session string) error {
+func (r *redisHandler) DelAllForSession(session string) error {
 	keys, err := r.client.Keys(r.ctx, r.concatKey(session, "*")).Result()
 	if err != nil {
 		return err
@@ -204,10 +203,10 @@ func (r *RedisHandler) DelAllForSession(session string) error {
 	return nil
 }
 
-func (r *RedisHandler) AddBlocker(session, key string, value string) error {
+func (r *redisHandler) AddBlocker(session, key string, value string) error {
 	return r.client.Set(r.ctx, r.concatBlockerKey(session, key), value, MaxTTL).Err()
 }
-func (r *RedisHandler) GetBlocker(session, key string) (DataHolder, error) {
+func (r *redisHandler) GetBlocker(session, key string) (DataHolder, error) {
 	res, err := r.client.Get(r.ctx, r.concatBlockerKey(session, key)).Result()
 	if err != nil {
 		return DataHolder{}, err
@@ -215,11 +214,11 @@ func (r *RedisHandler) GetBlocker(session, key string) (DataHolder, error) {
 	return r.getDataHolderByBlockerData(r.concatBlockerKey(session, key), res), nil
 }
 
-func (r *RedisHandler) DelBlocker(session, key string) error {
+func (r *redisHandler) DelBlocker(session, key string) error {
 	return r.client.Del(r.ctx, r.concatBlockerKey(session, key)).Err()
 }
 
-func (r *RedisHandler) GetAllValuesForSession(keyPattern string) ([]DataHolder, error) {
+func (r *redisHandler) GetAllValuesForSession(keyPattern string) ([]DataHolder, error) {
 	res, err := r.client.Keys(r.ctx, fmt.Sprintf("%s_%s*", r.Prefix, keyPattern)).Result()
 	if err != nil {
 		return []DataHolder{}, err
@@ -239,14 +238,14 @@ func (r *RedisHandler) GetAllValuesForSession(keyPattern string) ([]DataHolder, 
 	return result, nil
 
 }
-func (r *RedisHandler) concatBlockerKey(session, key string) string {
+func (r *redisHandler) concatBlockerKey(session, key string) string {
 	return fmt.Sprintf("%s_BLOCKER_%s_%s", r.Prefix, session, key)
 }
 
-func (r *RedisHandler) concatPageKey(key string) string {
+func (r *redisHandler) concatPageKey(key string) string {
 	return fmt.Sprintf("%s_PAGE_%s", r.Prefix, key)
 }
 
-func (r *RedisHandler) concatKey(session, key string) string {
+func (r *redisHandler) concatKey(session, key string) string {
 	return fmt.Sprintf("%s_%s_%s", r.Prefix, session, key)
 }

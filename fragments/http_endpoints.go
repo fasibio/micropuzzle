@@ -16,12 +16,12 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func (w *FragmentHandler) RegisterHandler(r *chi.Mux, socketPath, socketEndpoint string) {
+func (w *fragmentHandler) RegisterHandler(r *chi.Mux, socketPath, socketEndpoint string) {
 	r.HandleFunc(fmt.Sprintf("/%s", socketPath), w.handle)
 	r.Get(socketEndpoint, w.loadFragmentHandler)
 }
 
-func (sh *FragmentHandler) handle(w http.ResponseWriter, r *http.Request) {
+func (sh *fragmentHandler) handle(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	user := sh.getSockerUser(c, r)
 	logs := getLoggerWithUserInfo(logger.Get(), user)
@@ -47,7 +47,7 @@ func (sh *FragmentHandler) handle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (sh *FragmentHandler) handleMessages(user WebSocketUser) {
+func (sh *fragmentHandler) handleMessages(user WebSocketUser) {
 	logs := getLoggerWithUserInfo(logger.Get(), user)
 	for {
 		var messages Message
@@ -65,35 +65,35 @@ func (sh *FragmentHandler) handleMessages(user WebSocketUser) {
 	}
 }
 
-func (sh *FragmentHandler) interpretMessage(user WebSocketUser, msg Message) {
+func (sh *fragmentHandler) interpretMessage(user WebSocketUser, msg Message) {
 	switch msg.Type {
 	case SocketCommandLoadFragment:
-		var result LoadFragmentPayload
+		var result loadFragmentPayload
 		mapstructure.Decode(msg.Data, &result)
 		sh.onLoadFragment(user, result)
 	}
 }
 
-func (sh *FragmentHandler) onLoadFragment(user WebSocketUser, msg LoadFragmentPayload) {
+func (sh *fragmentHandler) onLoadFragment(user WebSocketUser, msg loadFragmentPayload) {
 
 	header := user.RemoteHeader
 	for k, v := range msg.ExtraHeader {
 		header[k] = v
 	}
 	result, _, isFallback := sh.LoadFragment(msg.Loading, msg.Content, user.Id, user.RemoteAddr, header)
-	sh.writeFragmentToClient(user, &NewFragmentPayload{
+	sh.writeFragmentToClient(user, &newFragmentPayload{
 		Key:        msg.Content,
 		Value:      result,
 		IsFallback: isFallback,
 	})
 }
 
-func (sh *FragmentHandler) loadFragmentHandler(w http.ResponseWriter, r *http.Request) {
+func (sh *fragmentHandler) loadFragmentHandler(w http.ResponseWriter, r *http.Request) {
 	fragment := r.URL.Query().Get("fragment")
 	frontend := r.URL.Query().Get("frontend")
 	userId := r.Header.Get("streamid")
 	content, cache, isFallback := sh.LoadFragment(fragment, frontend, userId, r.RemoteAddr, r.Header)
-	c, err := json.Marshal(NewFragmentPayload{
+	c, err := json.Marshal(newFragmentPayload{
 		Key:        frontend,
 		Value:      content,
 		IsFallback: isFallback,
@@ -107,7 +107,7 @@ func (sh *FragmentHandler) loadFragmentHandler(w http.ResponseWriter, r *http.Re
 	w.Write(c)
 }
 
-func (sh *FragmentHandler) getSockerUser(c *websocket.Conn, r *http.Request) WebSocketUser {
+func (sh *fragmentHandler) getSockerUser(c *websocket.Conn, r *http.Request) WebSocketUser {
 	return WebSocketUser{
 		Connection:   c,
 		Id:           r.URL.Query().Get("streamid"),

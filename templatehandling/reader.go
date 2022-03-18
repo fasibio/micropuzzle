@@ -8,22 +8,45 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-type Reader struct {
-	server       fragments.FragmentHandling
-	mainRequest  *http.Request
-	requestId    uuid.UUID
-	hasFallbacks int64
+type ReaderHandling interface {
+	Load(url, content string) string
+	GetRequestId() uuid.UUID
+	GetFallbacks() int64
 }
 
-func (r *Reader) Load(url, content string) string {
+type reader struct {
+	server      fragments.FragmentHandling
+	mainRequest *http.Request
+	requestId   uuid.UUID
+	fallbacks   int64
+}
+
+func NewReader(server fragments.FragmentHandling, r *http.Request, id uuid.UUID) *reader {
+	return &reader{
+		server:      server,
+		mainRequest: r,
+		requestId:   id,
+		fallbacks:   0,
+	}
+}
+
+func (r *reader) GetRequestId() uuid.UUID {
+	return r.requestId
+}
+
+func (r *reader) GetFallbacks() int64 {
+	return r.fallbacks
+}
+
+func (r *reader) Load(url, content string) string {
 	result, _, isFallback := r.server.LoadFragment(url, content, r.requestId.String(), r.mainRequest.RemoteAddr, r.mainRequest.Header)
 	if isFallback {
-		r.hasFallbacks = r.hasFallbacks + 1
+		r.fallbacks = r.fallbacks + 1
 	}
 
 	return r.getMicroPuzzleElement(content, result)
 }
 
-func (r *Reader) getMicroPuzzleElement(name, content string) string {
+func (r *reader) getMicroPuzzleElement(name, content string) string {
 	return fmt.Sprintf("<micro-puzzle-element name=\"%s\"><template>%s</template></micro-puzzle-element>", name, content)
 }

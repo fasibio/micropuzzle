@@ -16,15 +16,11 @@ import (
 	"github.com/go-chi/chi"
 )
 
-// TODO perhaps clash with normal server own routes (e.g. /footer/*) is registered but the public folder can have a footer folder as well
-
 func RegisterReverseProxy(r *chi.Mux, frontends configloader.Frontends) {
 	for key, one := range frontends {
 		for oneK, oneV := range one {
 			prefix := ""
-			if key != "global" {
-				prefix = key + "."
-			}
+			prefix = key + "."
 			err := registerMicrofrontendProxy(r, prefix+oneK, oneV)
 			if err != nil {
 				logger.Get().Warnw(fmt.Sprintf("Error by setting Reverseproxy for destination %s", prefix+oneK), "error", err)

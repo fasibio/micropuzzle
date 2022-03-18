@@ -82,6 +82,6 @@ func (s *ReverseProxyTestSuite) TestRegisterReverseProxy() {
 			s.Equal(backendResponse, string(b))
 		}
 
-		s.ElementsMatch([]string{"/home.start/*", "/footer/*"}, routePattern)
+		s.ElementsMatch([]string{"/home.start/*", "/global.footer/*"}, routePattern)
 	})
 }

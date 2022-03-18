@@ -32,16 +32,20 @@ type ProxyHandling interface {
 	Get(url string, header http.Header, remoteAddr string) ([]byte, CacheInformation, error)
 }
 
-type Proxy struct {
+type proxy struct {
 }
 
-func (p *Proxy) delHopHeaders(header http.Header) {
+func NewProxy() *proxy {
+	return &proxy{}
+}
+
+func (p *proxy) delHopHeaders(header http.Header) {
 	for _, h := range hopHeaders {
 		header.Del(h)
 	}
 }
 
-func (p *Proxy) copyHeader(dst, src *http.Header) {
+func (p *proxy) copyHeader(dst, src *http.Header) {
 	for k, vv := range *src {
 		for _, v := range vv {
 			dst.Add(k, v)
@@ -49,7 +53,7 @@ func (p *Proxy) copyHeader(dst, src *http.Header) {
 	}
 }
 
-func (p *Proxy) appendHostToXForwardHeader(header http.Header, host string) {
+func (p *proxy) appendHostToXForwardHeader(header http.Header, host string) {
 	// If we aren't the first proxy retain prior
 	// X-Forwarded-For information as a comma+space
 	// separated list and fold multiple headers into one.
@@ -59,7 +63,7 @@ func (p *Proxy) appendHostToXForwardHeader(header http.Header, host string) {
 	header.Set("X-Forwarded-For", host)
 }
 
-func (p *Proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, CacheInformation, error) {
+func (p *proxy) Get(url string, header http.Header, remoteAddr string) ([]byte, CacheInformation, error) {
 	client := &http.Client{}
 	p.delHopHeaders(header)
 
