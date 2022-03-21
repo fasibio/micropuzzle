@@ -13,10 +13,13 @@ import (
 	"github.com/fasibio/micropuzzle/configloader"
 	"github.com/fasibio/micropuzzle/logger"
 	"github.com/fasibio/micropuzzle/resultmanipulation"
-	"github.com/go-chi/chi"
 )
 
-func RegisterReverseProxy(r *chi.Mux, frontends configloader.Frontends) {
+type HttpRegistration interface {
+	HandleFunc(pattern string, handlerFn http.HandlerFunc)
+}
+
+func RegisterReverseProxy(r HttpRegistration, frontends configloader.Frontends) {
 	for key, one := range frontends {
 		for oneK, oneV := range one {
 			prefix := ""
@@ -29,7 +32,7 @@ func RegisterReverseProxy(r *chi.Mux, frontends configloader.Frontends) {
 	}
 }
 
-func registerMicrofrontendProxy(r *chi.Mux, name string, frontend configloader.Frontend) error {
+func registerMicrofrontendProxy(r HttpRegistration, name string, frontend configloader.Frontend) error {
 	url, err := url.Parse(frontend.Url)
 	if err != nil {
 		return err
@@ -45,9 +48,16 @@ func registerMicrofrontendProxy(r *chi.Mux, name string, frontend configloader.F
 	return nil
 }
 
+func isContentTypeManipulable(contentType string) bool {
+	return strings.Contains(contentType, "text/html") || strings.Contains(contentType, "text/css")
+}
+
 func rewriteBodyHandler(prefix string) func(*http.Response) error {
 	return func(resp *http.Response) (err error) {
-		b, err := ioutil.ReadAll(resp.Body) //TODO Read html only if header contains manipulation possibilities
+		if !isContentTypeManipulable(resp.Header.Get("Content-Type")) {
+			return nil
+		}
+		b, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}

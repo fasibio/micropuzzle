@@ -56,6 +56,7 @@ func (ru *runner) Run(c *cli.Context) error {
 	}
 	r.Use(chiprometheus.NewMiddleware("micropuzzle"))
 	r.Use(middleware.Compress(5))
+
 	proxy.RegisterReverseProxy(r, frontends)
 
 	cache, err := cache.NewRedisHandler(&redis.Options{

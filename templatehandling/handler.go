@@ -4,16 +4,25 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fasibio/micropuzzle/fragments"
+	"github.com/fasibio/micropuzzle/proxy"
 	"github.com/gofrs/uuid"
 )
+
+type ReaderHandling interface {
+	GetRequestId() uuid.UUID
+	GetFallbacks() int64
+}
+
+type FragmentHandling interface {
+	LoadFragment(frontend, fragmentName, userId, remoteAddr string, header http.Header) (string, proxy.CacheInformation, bool)
+}
 
 type TemplateHandler struct {
 	socketUrl string
 	Reader    ReaderHandling
 }
 
-func NewTemplateHandler(r *http.Request, socketUrl string, id uuid.UUID, server fragments.FragmentHandling) (*TemplateHandler, error) {
+func NewTemplateHandler(r *http.Request, socketUrl string, id uuid.UUID, server FragmentHandling) (*TemplateHandler, error) {
 	return &TemplateHandler{
 		socketUrl: socketUrl,
 		Reader:    NewReader(server, r, id),

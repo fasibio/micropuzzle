@@ -2,42 +2,29 @@ package filehandler
 
 import (
 	"io"
-	"mime"
 	"net/http"
-	"path/filepath"
 	"text/template"
 
-	"github.com/fasibio/micropuzzle/fragments"
 	"github.com/fasibio/micropuzzle/logger"
+	"github.com/fasibio/micropuzzle/proxy"
 	"github.com/fasibio/micropuzzle/templatehandling"
 	"github.com/go-chi/chi"
 	"github.com/gofrs/uuid"
 )
 
-func mimeTypeForFile(file string) string {
-	ext := filepath.Ext(file)
-	switch ext {
-	case ".htm", ".html":
-		return "text/html"
-	case ".css":
-		return "text/css"
-	case ".js":
-		return "application/javascript"
-
-	default:
-		return mime.TypeByExtension(ext)
-	}
+type FragmentHandling interface {
+	LoadFragment(frontend, fragmentName, userId, remoteAddr string, header http.Header) (string, proxy.CacheInformation, bool)
 }
 
-type templateCreator func(r *http.Request, socketUrl string, id uuid.UUID, server fragments.FragmentHandling) (*templatehandling.TemplateHandler, error)
+type templateCreator func(r *http.Request, socketUrl string, id uuid.UUID, server templatehandling.FragmentHandling) (*templatehandling.TemplateHandler, error)
 
 type fileHandler struct {
-	Server          fragments.FragmentHandling
+	Server          FragmentHandling
 	SocketUrl       string
 	templateHandler templateCreator
 }
 
-func NewFileHandler(server fragments.FragmentHandling, socketUrl string) *fileHandler {
+func NewFileHandler(server FragmentHandling, socketUrl string) *fileHandler {
 	return &fileHandler{
 		Server:          server,
 		SocketUrl:       socketUrl,

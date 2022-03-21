@@ -16,6 +16,12 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+type loadFragmentPayload struct {
+	Content     string `json:"content,omitempty"`
+	Loading     string `json:"loading,omitempty"`
+	ExtraHeader map[string][]string
+}
+
 func (w *fragmentHandler) RegisterHandler(r *chi.Mux, socketPath, socketEndpoint string) {
 	r.HandleFunc(fmt.Sprintf("/%s", socketPath), w.handle)
 	r.Get(socketEndpoint, w.loadFragmentHandler)
@@ -114,4 +120,8 @@ func (sh *fragmentHandler) getSockerUser(c *websocket.Conn, r *http.Request) Web
 		RemoteHeader: r.Header,
 		RemoteAddr:   r.RemoteAddr,
 	}
+}
+
+func (sh *fragmentHandler) writeFragmentToClient(user WebSocketUser, payload *newFragmentPayload) error {
+	return user.Connection.WriteJSON(Message{Type: SocketCommandNewContent, Data: payload})
 }

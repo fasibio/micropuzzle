@@ -16,13 +16,18 @@ import (
 
 var upgrader = websocket.Upgrader{} // use default options
 
-type FragmentHandling interface {
-	LoadFragment(frontend, fragmentName, userId, remoteAddr string, header http.Header) (string, proxy.CacheInformation, bool)
-}
-
 type Message struct {
 	Type string      `json:"type,omitempty"`
 	Data interface{} `json:"data,omitempty"`
+}
+
+type ConnectionHandler interface {
+	ReadJSON(v interface{}) error
+	WriteJSON(v interface{}) error
+}
+
+type ProxyHandling interface {
+	Get(url string, header http.Header, remoteAddr string) ([]byte, proxy.CacheInformation, error)
 }
 
 type WebSocketUser struct {
@@ -32,11 +37,6 @@ type WebSocketUser struct {
 	RemoteAddr   string
 }
 
-type ConnectionHandler interface {
-	ReadJSON(v interface{}) error
-	WriteJSON(v interface{}) error
-}
-
 type loadAsyncOptions struct {
 	Frontend     string
 	FragmentName string
@@ -44,13 +44,19 @@ type loadAsyncOptions struct {
 	Uuid         string
 	RemoteAddr   string
 	Header       http.Header
-	Result       chan<- AsyncLoadResultChan
+	Result       chan<- asyncLoadResultChan
 	Timeout      chan<- bool
 }
 
-type AsyncLoadResultChan struct {
+type asyncLoadResultChan struct {
 	Value string
 	Cache proxy.CacheInformation
+}
+
+type newFragmentPayload struct {
+	Key        string `json:"key,omitempty"`
+	Value      string `json:"value,omitempty"`
+	IsFallback bool   `json:"isFallback,omitempty"`
 }
 
 const (
@@ -61,22 +67,10 @@ const (
 	PubSubCommandRemoveUser   = "remove_user"  //string ==> streamId
 )
 
-type newFragmentPayload struct {
-	Key        string `json:"key,omitempty"`
-	Value      string `json:"value,omitempty"`
-	IsFallback bool   `json:"isFallback,omitempty"`
-}
-
-type loadFragmentPayload struct {
-	Content     string `json:"content,omitempty"`
-	Loading     string `json:"loading,omitempty"`
-	ExtraHeader map[string][]string
-}
-
 type fragmentHandler struct {
 	cache             cache.CacheHandler
 	pubSub            cache.WebSocketBroadcast
-	proxy             proxy.ProxyHandling
+	proxy             ProxyHandling
 	timeout           time.Duration
 	destinations      configloader.Frontends
 	fallbackLoaderKey string
@@ -103,10 +97,6 @@ func NewFragmentHandler(cache cache.CacheHandler, pubSub cache.WebSocketBroadcas
 	return handler
 }
 
-func (sh *fragmentHandler) writeFragmentToClient(user WebSocketUser, payload *newFragmentPayload) error {
-	return user.Connection.WriteJSON(Message{Type: SocketCommandNewContent, Data: payload})
-}
-
 // LoadFragment try to load the microfrontend
 // it this need longer than defined timeout it will return a fallback(some loader) instance of microfrontend.
 // It will be start an asnyc loader to get data over the websocket connection to the client if it is there
@@ -125,7 +115,7 @@ func (sh *fragmentHandler) LoadFragment(frontend, fragmentName, userId, remoteAd
 	if err != nil {
 		logger.Get().Warnw("Error by write blocker", "error", err)
 	}
-	resultChan := make(chan AsyncLoadResultChan, 1)
+	resultChan := make(chan asyncLoadResultChan, 1)
 	timeout := make(chan bool, 1)
 	timeoutBubble := make(chan bool, 1)
 	go sh.loadAsync(loadAsyncOptions{
@@ -183,7 +173,7 @@ func (sh *fragmentHandler) handleFragmentContent(options loadAsyncOptions, conte
 		if len(options.Timeout) == 1 {
 			sh.updateClientFragment(options.UserId, options.FragmentName, content)
 		} else {
-			options.Result <- AsyncLoadResultChan{
+			options.Result <- asyncLoadResultChan{
 				Value: content,
 				Cache: cache,
 			}
@@ -197,11 +187,13 @@ func (sh *fragmentHandler) loadAsync(options loadAsyncOptions) {
 	cachedValue, expire, err := sh.cache.GetPage(options.Frontend)
 	fromCache := false
 	if err == nil {
+		// Use data from Cache
 		header := make(http.Header)
 		header.Set("Cache-Control", fmt.Sprintf("max-age=%.0f;", expire.Seconds()))
 		sh.handleFragmentContent(options, cachedValue, proxy.CacheInformation{Expires: expire, Header: header})
 		fromCache = true
 	} else {
+		// Load data from Microfrontend Server
 		res, cache, err := sh.proxy.Get(url, options.Header, options.RemoteAddr)
 		if err != nil {
 			logger.Get().Warnw("Error by get data from Microserviceurl", "error", err)

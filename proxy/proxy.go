@@ -28,10 +28,6 @@ type CacheInformation struct {
 	Header  http.Header
 }
 
-type ProxyHandling interface {
-	Get(url string, header http.Header, remoteAddr string) ([]byte, CacheInformation, error)
-}
-
 type proxy struct {
 }
 

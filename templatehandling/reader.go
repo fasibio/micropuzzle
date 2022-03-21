@@ -4,24 +4,17 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fasibio/micropuzzle/fragments"
 	"github.com/gofrs/uuid"
 )
 
-type ReaderHandling interface {
-	Load(url, content string) string
-	GetRequestId() uuid.UUID
-	GetFallbacks() int64
-}
-
 type reader struct {
-	server      fragments.FragmentHandling
+	server      FragmentHandling
 	mainRequest *http.Request
 	requestId   uuid.UUID
 	fallbacks   int64
 }
 
-func NewReader(server fragments.FragmentHandling, r *http.Request, id uuid.UUID) *reader {
+func NewReader(server FragmentHandling, r *http.Request, id uuid.UUID) *reader {
 	return &reader{
 		server:      server,
 		mainRequest: r,

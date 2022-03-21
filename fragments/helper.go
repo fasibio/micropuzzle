@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/zap"
 )
 
 var (
@@ -21,4 +22,7 @@ func init() {
 
 func (sh *fragmentHandler) writePromMessage(options loadAsyncOptions, fromCache, insideTimeout bool, start time.Time) {
 	promLoadFragmentsTime.WithLabelValues(options.FragmentName, options.Frontend, strconv.FormatBool(insideTimeout), strconv.FormatBool(fromCache)).Observe(float64(time.Since(start).Nanoseconds()) / 1000000)
+}
+func getLoggerWithUserInfo(logs *zap.SugaredLogger, user WebSocketUser) *zap.SugaredLogger {
+	return logs.With("streamid", user.Id, "address", user.RemoteAddr)
 }
