@@ -2,6 +2,7 @@ package configloader
 
 import (
 	"io/ioutil"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v2"
@@ -31,6 +32,7 @@ func (f Frontends) GetKeyList() []string {
 			keys = append(keys, k+"."+frontend)
 		}
 	}
+	sort.Strings(keys)
 	return keys
 }
 

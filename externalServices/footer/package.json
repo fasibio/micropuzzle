@@ -23,7 +23,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "genTypes": "curl http://localhost:3301/micro-puzzle-helper.ts > src/config/micro-puzzle-helper.ts"
   },
   "eslintConfig": {
     "extends": [

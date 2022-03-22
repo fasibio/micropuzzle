@@ -1,9 +1,10 @@
 import styled from "styled-components";
 import React from "react";
 import { LinkButton} from './Buttons'
+import {loadMicroFrontend, MicropuzzleFrontends} from '../config/micro-puzzle-helper'
 export interface EventLinkProps {
   fragmentName: string
-  loading: string
+  loading: MicropuzzleFrontends
   text: string
   
 }
@@ -11,16 +12,7 @@ export interface EventLinkProps {
 
 export const EventLink = ({ fragmentName, loading, text }: EventLinkProps) => {
   return <LinkButton onClick={() => {
-    const event = new CustomEvent('load-content',{
-      bubbles: true,
-      composed: true,
-      cancelable: true,
-      detail: {
-      loading: loading,
-      content: fragmentName
-      }
-    })
-    document.dispatchEvent(event);
+    loadMicroFrontend(fragmentName, loading)
   }}>{ text }</LinkButton>
   
 }

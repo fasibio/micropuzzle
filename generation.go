@@ -45,12 +45,7 @@ func (ru *runner) GenerateType(c *cli.Context) error {
 		keyList = frontends.Frontends
 	}
 
-	destinationContent := "enum MicropuzzleFrontends { \n "
-	for _, key := range keyList {
-		destinationContent += fmt.Sprintf("\t%s=\"%s\",\n", strings.ToUpper(strings.Replace(key, ".", "_", 1)), key)
-	}
-	destinationContent += "}\n\n"
-	destinationContent += string(clientLibFile)
+	destinationContent := getTypeScriptContent(keyList)
 	if _, err := os.Stat(destination); os.IsNotExist(err) {
 		err := os.Mkdir(destination, os.ModeDir|0755)
 		if err != nil {
@@ -66,4 +61,19 @@ func (ru *runner) GenerateType(c *cli.Context) error {
 	file.WriteString(destinationContent)
 
 	return nil
+}
+
+func getTypeScriptContent(keyList []string) string {
+	destinationContent := `/**
+ * Mircopuzzle AUTO-GENERATED CODE: PLEASE DO NOT MODIFY MANUALLY
+ */
+	
+export enum MicropuzzleFrontends {
+`
+	for _, key := range keyList {
+		destinationContent += fmt.Sprintf("\t%s=\"%s\",\n", strings.ToUpper(strings.Replace(key, ".", "_", 1)), key)
+	}
+	destinationContent += "}\n\n"
+	destinationContent += string(clientLibFile)
+	return destinationContent
 }

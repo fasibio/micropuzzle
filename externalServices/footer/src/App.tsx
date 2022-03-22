@@ -2,6 +2,7 @@ import React from 'react';
 import { FlowText, Link } from './atoms/Texts'
 import styled from 'styled-components'
 import { EventLink, EventLinkProps} from './atoms/EventButtons'
+import { MicropuzzleFrontends } from './config/micro-puzzle-helper';
 const Root = styled.div`
   display: flex;
   align-items:  center;
@@ -15,12 +16,12 @@ const Root = styled.div`
 const routings: EventLinkProps[] = [
   {
     fragmentName: "content",
-    loading: "startpage.content",
+    loading: MicropuzzleFrontends.STARTPAGE_CONTENT,
     text: "Startpage"
   },
   {
     fragmentName: "content",
-    loading: "about.content",
+    loading: MicropuzzleFrontends.ABOUT_CONTENT,
     text: "About"
   },
 ]

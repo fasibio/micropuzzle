@@ -30,9 +30,10 @@ const (
 
 /* Management endpoints*/
 const (
-	METRICS_ENDPOINT   = "/metrics"
-	HEALTH_ENDPOINT    = "/health"
-	FRONTENDS_ENDPOINT = "/frontends"
+	METRICS_ENDPOINT         = "/metrics"
+	HEALTH_ENDPOINT          = "/health"
+	FRONTENDS_ENDPOINT       = "/frontends"
+	TYPE_GENERATION_ENDPOINT = "/micro-puzzle-helper.ts"
 )
 
 //go:embed micro-lib/*.js
@@ -107,6 +108,10 @@ func (r *runner) StartManagementEndpoint(port string, frontends configloader.Fro
 		json.NewEncoder(w).Encode(FrontedsManagementResult{
 			Frontends: frontends.GetKeyList(),
 		})
+	})
+
+	managementR.Get(TYPE_GENERATION_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(getTypeScriptContent(frontends.GetKeyList())))
 	})
 
 	http.ListenAndServe(fmt.Sprintf(":%s", port), managementR)
