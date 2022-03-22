@@ -30,30 +30,31 @@ DESCRIPTION:
    Application to combine Server Side Include and Afterloading
 
 COMMANDS:
-   help, h  Shows a list of commands or help for one command
+   generateType, gen  Generate Typescript types
+   help, h            Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --timeoutms value       Timeout for loading Microfrontends (for all slower, it will be use streaming to bring it to the client) (default: 45ms) [$MICROPUZZLE_TIMEOUTMS]
-   --logLevel value        Loglevel debug, info, warn, error (default: "info") [$MICROPUZZLE_LOGLEVEL]
-   --port value            port where server will be started (default: "3300") [$MICROPUZZLE_PORT]
-   --publicfoder value     Folder where all html js css from server directly will be foundable (Public folder for the web) (default: "./public") [$MICROPUZZLE_PUBLICFODER]
-   --microfrontends value  A yaml file to describe available Frontends (default: "./config/frontends.yaml") [$MICROPUZZLE_MICROFRONTENDS]
-   --fallbackloader value  key of inifile where to find fallbackhtml which will shown if microfrontend is lower than timeout (default: "fallback") [$MICROPUZZLE_FALLBACKLOADER]
-   --redisaddr value       The domian/ip:port of redis (default: "localhost:6379") [$MICROPUZZLE_REDISADDR]
-   --redisuser value       Username to connect to redis [$MICROPUZZLE_REDISUSER]
-   --redispassword value   Password to connect to redis [$MICROPUZZLE_REDISPASSWORD]
-   --redisdb value         Db to use by redis (default: 0) [$MICROPUZZLE_REDISDB]
-   --managementport value  Port to get data not needed from client (default: 3301) [$MICROPUZZLE_MANAGEMENTPORT]
+   --timeoutms value       Timeout for loading Microfrontends (for all slower, it will be use streaming to bring it to the client) (default: 45ms) [$TIMEOUTMS]
+   --logLevel value        Loglevel debug, info, warn, error (default: "info") [$LOGLEVEL]
+   --port value            port where server will be started (default: "3300") [$PORT]
+   --publicfoder value     Folder where all html js css from server directly will be foundable (Public folder for the web) (default: "./public") [$PUBLICFODER]
+   --microfrontends value  A yaml file to describe available Frontends (default: "./config/frontends.yaml") [$MICROFRONTENDS]
+   --fallbackloader value  key of inifile where to find fallbackhtml which will shown if microfrontend is lower than timeout (default: "fallback") [$FALLBACKLOADER]
+   --redisaddr value       The domian/ip:port of redis (default: "localhost:6379") [$REDISADDR]
+   --redisuser value       Username to connect to redis [$REDISUSER]
+   --redispassword value   Password to connect to redis [$REDISPASSWORD]
+   --redisdb value         Db to use by redis (default: 0) [$REDISDB]
+   --managementport value  Port to get data not needed from client (default: 3301) [$MANAGEMENTPORT]
    --help, -h              show help (default: false)
 
 ```
 
 
 ## Configure your possible available Microfrontends
-with `--microfrontends` (or over Environment `MICROPUZZLE_MICROFRONTENDS`) you can set the destination of an inifile. 
+with `--microfrontends` (or over Environment `MICROPUZZLE_MICROFRONTENDS`) you can set the destination of an yaml-file. 
 Inside this file you can configure with logic fragment have which url to load the content. [example](/config/frontends.yaml)
 
-## Configure your frontend scarlett
+## Configure your frontend skeleton
 with `--publicfolder` (or over Environment `MICROPUZZLE_PUBLICFODER`) you can set the folder where to find root index.html template
 Inside this folder you can use normal html, css, js with should be global there. 
 
@@ -72,18 +73,13 @@ The `logic unique name of this fronend space` is importend. About this you have 
 ## How to change the Content from Client site (example button click)
 [look here](/externalServices/footer_old/index.html)
 
-At the end you have to send Custom Javascript events to load new Content
-```
-  const event = new CustomEvent('load-content',{
-    bubbles: true,
-    composed: true,
-    cancelable: true,
-    detail: {
-      loading: "key inside your ini file,"
-      content: "logic unique name of this fronend space"
-  }})
-  document.dispatchEvent(event);
-```
+At the end you have to send Custom Javascript events to load new Content. 
+But a Typescript snippet will be generated for you. 
+Unter the Managmenturl (default 3301). 
+So if you start it local: 
+http://localhost:3301/micro-puzzle-helper.ts
 
+This snippet you can include into your Microfrontends. [example](./externalServices/footer/): 
+- See generation Script (`genTypes`) at [package.json](./externalServices/footer/package.json)
 
-
+This Code snippet will also have enum MicropuzzleFrontends where you find all keys from you [frontends.yaml](/config/frontends.yaml)
