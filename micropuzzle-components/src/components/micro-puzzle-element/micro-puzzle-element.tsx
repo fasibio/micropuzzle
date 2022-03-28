@@ -8,8 +8,6 @@ import { NewContentEventDetails, sleep } from '../../utils/utils';
 export class MicroPuzzleElement {
   @Element() el: HTMLMicroPuzzleElementElement;
 
-  @State()toggle: boolean = true
-
   /**
    * The Logic unique name for this elementarea
    */
@@ -73,7 +71,6 @@ export class MicroPuzzleElement {
   }
 
   render() {
-    console.log("render!!!", this.name, this.toggle)
     return (
       <Host>
         <slot></slot>
