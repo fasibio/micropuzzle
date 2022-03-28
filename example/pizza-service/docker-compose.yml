@@ -1,0 +1,21 @@
+version: "3.2"
+services:
+  redis:
+    image: redis
+  # detailpage:
+  #   build: "../detailpage"
+  footer:
+    build: "./footer"
+  header:
+    build: "./header"
+  startpage:
+    build: "./startpage"
+  micropuzzle:
+    build: "./puzzle"
+    ports:
+      - "3300:3300" #Client port
+      - "3301:3301" # Management port
+    environment:
+      - REDISADDR=redis:6379
+    volumes:
+      - "./puzzle/config:/config"

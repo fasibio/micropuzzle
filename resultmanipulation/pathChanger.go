@@ -25,6 +25,18 @@ var changeLinkTags = []LinkTag{
 	{Tag: "audio", Type: "src"},
 }
 
+func ChangePathOfRessourcesJsModule(js, prefix string) string {
+	fromR := regexp.MustCompile(`from "/`)
+	res := string(fromR.ReplaceAll([]byte(js), []byte(`from "`+prefix+`/`)))
+	importRSingleQuta := regexp.MustCompile(`import [']/`)
+	res = string(importRSingleQuta.ReplaceAll([]byte(res), []byte(`import '`+prefix+`/`)))
+	importRDoubleQuta := regexp.MustCompile(`import ["]/`)
+	res = string(importRDoubleQuta.ReplaceAll([]byte(res), []byte(`import "`+prefix+`/`)))
+
+	return res
+
+}
+
 func ChangePathOfRessources(html, prefix string) (string, error) {
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
@@ -37,6 +49,9 @@ func ChangePathOfRessources(html, prefix string) (string, error) {
 			changeHtmlLink(s, prefix, tag.Type)
 		})
 	}
+	doc.Find("script[type='module']:not([src])").Each(func(i int, s *goquery.Selection) {
+		s.SetHtml(ChangePathOfRessourcesJsModule(s.Text(), `/`+prefix))
+	})
 	doc.Find("form").Each(func(i int, s *goquery.Selection) {
 		action, ok := s.Attr("action")
 		if ok && !strings.HasPrefix(action, "http") {

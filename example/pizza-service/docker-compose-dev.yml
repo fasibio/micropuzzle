@@ -1,0 +1,27 @@
+version: "3.2"
+services:
+  redis:
+    image: redis
+  # detailpage:
+  #   build: "../detailpage"
+  footer:
+    build: "./footer"
+  header:
+    build: "./header"
+  startpage:
+    build: "./startpage"
+  micropuzzle:
+    build: "./puzzle"
+    ports:
+      - "3300:3300" #Client port
+      - "3301:3301" # Management port
+    environment:
+      - REDISADDR=redis:6379
+      - MICROFRONTENDS=./config/frontends-dev.yaml
+    volumes:
+      - "./puzzle/config:/config"
+  dockerhost:
+    image: qoomon/docker-host
+    cap_add: [ 'NET_ADMIN', 'NET_RAW' ]
+    mem_limit: 8M
+    restart: on-failure

@@ -20,6 +20,9 @@ type HttpRegistration interface {
 }
 
 func RegisterReverseProxy(r HttpRegistration, frontends configloader.Frontends) {
+
+	//TODO also add result by cache control to redis cache
+
 	for key, one := range frontends {
 		for oneK, oneV := range one {
 			prefix := ""
@@ -37,19 +40,24 @@ func registerMicrofrontendProxy(r HttpRegistration, name string, frontend config
 	if err != nil {
 		return err
 	}
-	logger.Get().Infof("Register endpoint /%s/* for frontend %s", name, name)
-	r.HandleFunc(fmt.Sprintf("/%s/*", name), func(w http.ResponseWriter, r *http.Request) {
+	logger.Get().Infof("Register endpoint /%s/* for frontend %s with url: %s", name, name, url)
+	handler := func(w http.ResponseWriter, r *http.Request) {
 		path := strings.Replace(r.URL.String(), "/"+name, "", 1)
 		r.URL, err = url.Parse(path)
 		p := httputil.NewSingleHostReverseProxy(url)
 		p.ModifyResponse = rewriteBodyHandler("/" + name)
 		p.ServeHTTP(w, r)
-	})
+	}
+	if frontend.GlobalOverride != "" {
+		logger.Get().Infof("Register GlobalOverride endpoint %s/* for frontend %s with url: %s", frontend.GlobalOverride, name, url)
+		r.HandleFunc(fmt.Sprintf("%s/*", frontend.GlobalOverride), handler)
+	}
+	r.HandleFunc(fmt.Sprintf("/%s/*", name), handler)
 	return nil
 }
 
 func isContentTypeManipulable(contentType string) bool {
-	return strings.Contains(contentType, "text/html") || strings.Contains(contentType, "text/css")
+	return strings.Contains(contentType, "text/html") || strings.Contains(contentType, "text/css") || strings.Contains(contentType, "application/javascript")
 }
 
 func rewriteBodyHandler(prefix string) func(*http.Response) error {
@@ -73,6 +81,9 @@ func rewriteBodyHandler(prefix string) func(*http.Response) error {
 			}
 		} else if strings.Contains(resp.Header.Get("Content-Type"), "text/css") {
 			res = resultmanipulation.ChangePathOfRessourcesCss(string(b), prefix)
+		} else if strings.Contains(resp.Header.Get("Content-Type"), "application/javascript") {
+			res = resultmanipulation.ChangePathOfRessourcesJsModule(string(b), prefix)
+			// res = string(b)
 		} else {
 			res = string(b)
 		}

@@ -11,7 +11,8 @@ import (
 type Frontends map[string]map[string]Frontend
 
 type Frontend struct {
-	Url string `yaml:"url"`
+	Url            string `yaml:"url"`
+	GlobalOverride string `yaml:"globalOverride"`
 }
 
 // Find out url from configuration yaml by point seperated name (f.e. "startpage.content")

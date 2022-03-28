@@ -84,10 +84,10 @@ export class MicroPuzzleLoader {
 
   @Listen('load-content', { target: 'window' })
   async loadNewContent(event: CustomEvent<LoadContentPayload>) {
-    const result = await fetch(`/micro-puzzle?fragment=${event.detail.loading}&frontend=${event.detail.content}`, {headers: {
+    const fetchResult = await fetch(`/micro-puzzle?fragment=${event.detail.loading}&frontend=${event.detail.content}`, {headers: {
       streamid: this.streamregistername
     }});
-    const data: NewFragmentPayload = await result.json();
+    const data: NewFragmentPayload = await fetchResult.json();
     this.sendNewContentEvent(data);
     if (data.isFallback) {
       this.startSocketConnection();
@@ -99,3 +99,4 @@ export class MicroPuzzleLoader {
     return <Host></Host>;
   }
 }
+

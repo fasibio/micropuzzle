@@ -1,0 +1,29 @@
+version: "3.2"
+services:
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+  redis-commander:
+    container_name: redis-commander
+    hostname: redis-commander
+    image: rediscommander/redis-commander:latest
+    restart: always
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8089:8081"
+  footer:
+    build: "./footer"
+    ports:
+      - "3331:80"
+  startpage:
+    build: "./startpage"
+    ports:
+      - "3332:80"
+  cart:
+    build: "./cart"
+    ports:
+      - "3333:80"

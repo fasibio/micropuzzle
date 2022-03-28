@@ -1,0 +1,17 @@
+global:
+  footer:
+    url: http://localhost:3331
+  header:  
+    url: http://localhost:3000 
+    globalOverride: /src
+  fallback:
+    url: http://localhost:3300/loader.html
+startpage:
+  content:
+    url: http://localhost:3332
+detail:
+  content:
+    url: http://detailpage
+cart: 
+  content: 
+    url: http://localhost:3333

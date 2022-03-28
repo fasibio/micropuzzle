@@ -1,0 +1,14 @@
+global:
+  footer:
+    url: http://footer
+  header:  
+    url: http://dockerhost:3000
+    globalOverride: /src 
+  fallback:
+    url: http://localhost:3300/loader.html
+startpage:
+  content:
+    url: http://startpage
+detail:
+  content:
+    url: http://detailpage
