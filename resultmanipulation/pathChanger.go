@@ -75,10 +75,9 @@ func ChangePathOfRessources(html, prefix string) (string, error) {
 }
 
 func ChangePathOfRessourcesCss(css, prefix string) string {
-
 	res := string(cssUrlNoSemicolonRegex.ReplaceAll([]byte(css), []byte("url("+prefix+"/")))
-	res = string(cssSingleSemicolonRegex.ReplaceAll([]byte(css), []byte("url('"+prefix+"/")))
-	res = string(cssDoubleSemicolonRegex.ReplaceAll([]byte(css), []byte("url('"+prefix+"/")))
+	res = string(cssSingleSemicolonRegex.ReplaceAll([]byte(res), []byte("url('"+prefix+"/")))
+	res = string(cssDoubleSemicolonRegex.ReplaceAll([]byte(res), []byte("url('"+prefix+"/")))
 	return res
 }
 
