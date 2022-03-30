@@ -82,4 +82,4 @@ http://localhost:3301/micro-puzzle-helper.ts
 This snippet you can include into your Microfrontends. [example](./externalServices/footer/): 
 - See generation Script (`genTypes`) at [package.json](./externalServices/footer/package.json)
 
-This Code snippet will also have enum MicropuzzleFrontends where you find all keys from you [frontends.yaml](/config/frontends.yaml)
+This Code snippet will also have enum MicropuzzleFrontends where you find all keys from your [frontends.yaml](/config/frontends.yaml)
