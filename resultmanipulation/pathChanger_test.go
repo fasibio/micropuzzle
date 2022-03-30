@@ -184,6 +184,22 @@ func TestChangePathOfRessourcesCss(t *testing.T) {
 			},
 			want: "body { background-color: #f0f0f0;\nbackground-image: url(mock/lala); }",
 		},
+		{
+			name: "url to change in css single semicolon",
+			args: args{
+				css:    "body { background-color: #f0f0f0;\nbackground-image: url('/lala'); }",
+				prefix: "mock",
+			},
+			want: "body { background-color: #f0f0f0;\nbackground-image: url('mock/lala'); }",
+		},
+		{
+			name: "url to change in css double semicolon",
+			args: args{
+				css:    "body { background-color: #f0f0f0;\nbackground-image: url(\"/lala\"); }",
+				prefix: "mock",
+			},
+			want: "body { background-color: #f0f0f0;\nbackground-image: url(\"mock/lala\"); }",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
