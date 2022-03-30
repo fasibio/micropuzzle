@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && cp -r src/assets/* dist/assets",
     "preview": "vite preview",
     "genTypes": "curl http://localhost:3301/micro-puzzle-helper.ts > src/config/micro-puzzle-helper.ts"
   },

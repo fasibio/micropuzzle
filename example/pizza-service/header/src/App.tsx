@@ -4,7 +4,8 @@ import { loadMicroFrontend, MicropuzzleFrontends } from './config/micro-puzzle-h
 
 
 const Root = styled.div`
-  background-color: red;
+  background-color: black;
+  color: white;
   height: 50px;
   display: flex;
   flex-direction: row;
@@ -17,20 +18,24 @@ const FlexContainer = styled.div`
 `
 
 const CartButton = styled.button`
-  background-image: url('./src/assets/cart.svg');
-  background-size: 100% 100%;
-    width: 50px;
-    height: 50px;
+  background-image: url('/assets/cart.svg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 90% 90%;
+  width: 45px;
+  height: 45px;
+  margin: 2px;
+  padding: 10px;
 `
 
 function App() {
     return (
     <Root>
     <FlexContainer></FlexContainer>      
-    <FlexContainer>Pizza...</FlexContainer>
+    <FlexContainer>Pizza for everyone</FlexContainer>
     <FlexContainer>
-      <CartButton onClick={() => {
-        console.log('hello')
+      <CartButton title="Cart" onClick={() => {
         loadMicroFrontend("content", MicropuzzleFrontends.CART_CONTENT)
       }}/>
     </FlexContainer>      

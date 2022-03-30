@@ -12,6 +12,22 @@ type LinkTag struct {
 	Type string
 }
 
+var jsFromRegexp *regexp.Regexp
+var jsImportSingleQuotaRegex *regexp.Regexp
+var jsImportDoubleQuotaRegex *regexp.Regexp
+var cssUrlNoSemicolonRegex *regexp.Regexp
+var cssSingleSemicolonRegex *regexp.Regexp
+var cssDoubleSemicolonRegex *regexp.Regexp
+
+func init() {
+	jsFromRegexp = regexp.MustCompile(`from "/`)
+	jsImportSingleQuotaRegex = regexp.MustCompile(`import '/`)
+	jsImportDoubleQuotaRegex = regexp.MustCompile(`import "/`)
+	cssUrlNoSemicolonRegex = regexp.MustCompile(`url\(/`)
+	cssSingleSemicolonRegex = regexp.MustCompile(`url\('/`)
+	cssDoubleSemicolonRegex = regexp.MustCompile(`url\('/`)
+}
+
 var changeLinkTags = []LinkTag{
 	{Tag: "link", Type: "href"},
 	{Tag: "script", Type: "src"},
@@ -26,12 +42,9 @@ var changeLinkTags = []LinkTag{
 }
 
 func ChangePathOfRessourcesJsModule(js, prefix string) string {
-	fromR := regexp.MustCompile(`from "/`)
-	res := string(fromR.ReplaceAll([]byte(js), []byte(`from "`+prefix+`/`)))
-	importRSingleQuta := regexp.MustCompile(`import [']/`)
-	res = string(importRSingleQuta.ReplaceAll([]byte(res), []byte(`import '`+prefix+`/`)))
-	importRDoubleQuta := regexp.MustCompile(`import ["]/`)
-	res = string(importRDoubleQuta.ReplaceAll([]byte(res), []byte(`import "`+prefix+`/`)))
+	res := string(jsFromRegexp.ReplaceAll([]byte(js), []byte(`from "`+prefix+`/`)))
+	res = string(jsImportSingleQuotaRegex.ReplaceAll([]byte(res), []byte(`import '`+prefix+`/`)))
+	res = string(jsImportDoubleQuotaRegex.ReplaceAll([]byte(res), []byte(`import "`+prefix+`/`)))
 
 	return res
 
@@ -62,8 +75,11 @@ func ChangePathOfRessources(html, prefix string) (string, error) {
 }
 
 func ChangePathOfRessourcesCss(css, prefix string) string {
-	r := regexp.MustCompile(`url\(/`)
-	return string(r.ReplaceAll([]byte(css), []byte("url("+prefix+"/")))
+
+	res := string(cssUrlNoSemicolonRegex.ReplaceAll([]byte(css), []byte("url("+prefix+"/")))
+	res = string(cssSingleSemicolonRegex.ReplaceAll([]byte(css), []byte("url('"+prefix+"/")))
+	res = string(cssDoubleSemicolonRegex.ReplaceAll([]byte(css), []byte("url('"+prefix+"/")))
+	return res
 }
 
 func changeHtmlLink(s *goquery.Selection, prefix, tag string) {

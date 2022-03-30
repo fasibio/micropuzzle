@@ -57,7 +57,7 @@ func registerMicrofrontendProxy(r HttpRegistration, name string, frontend config
 }
 
 func isContentTypeManipulable(contentType string) bool {
-	return strings.Contains(contentType, "text/html") || strings.Contains(contentType, "text/css") || strings.Contains(contentType, "application/javascript")
+	return strings.Contains(contentType, "text/html") || strings.Contains(contentType, "text/css") || strings.Contains(contentType, "application/javascript") || contentType == ""
 }
 
 func rewriteBodyHandler(prefix string) func(*http.Response) error {
@@ -74,23 +74,29 @@ func rewriteBodyHandler(prefix string) func(*http.Response) error {
 			return err
 		}
 		var res string
+		res = resultmanipulation.ChangePathOfRessourcesCss(string(b), prefix)
+		res = resultmanipulation.ChangePathOfRessourcesJsModule(res, prefix)
 		if strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
-			res, err = resultmanipulation.ChangePathOfRessources(string(b), prefix)
+			res, err = resultmanipulation.ChangePathOfRessources(res, prefix)
 			if err != nil {
 				return err
 			}
-		} else if strings.Contains(resp.Header.Get("Content-Type"), "text/css") {
-			res = resultmanipulation.ChangePathOfRessourcesCss(string(b), prefix)
-		} else if strings.Contains(resp.Header.Get("Content-Type"), "application/javascript") {
-			res = resultmanipulation.ChangePathOfRessourcesJsModule(string(b), prefix)
-			// res = string(b)
-		} else {
-			res = string(b)
 		}
+		//  else if strings.Contains(resp.Header.Get("Content-Type"), "text/css") {
+		// 	res = resultmanipulation.ChangePathOfRessourcesCss(string(b), prefix)
+		// } else if strings.Contains(resp.Header.Get("Content-Type"), "application/javascript") {
+		// 	res = resultmanipulation.ChangePathOfRessourcesJsModule(string(b), prefix)
+		// 	res = resultmanipulation.ChangePathOfRessourcesCss(res, prefix)
+		// 	// res = string(b)
+		// } else {
+		// 	res = string(b)
+		// }
+
 		body := ioutil.NopCloser(bytes.NewReader([]byte(res)))
 		resp.Body = body
-		resp.ContentLength = int64(len(b))
-		resp.Header.Set("Content-Length", strconv.Itoa(len(b)))
+		resp.ContentLength = int64(len(res))
+
+		resp.Header.Set("Content-Length", strconv.Itoa(len(res)))
 		return nil
 	}
 }

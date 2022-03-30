@@ -8,8 +8,8 @@ services:
     build: "./footer"
   header:
     build: "./header"
-  startpage:
-    build: "./startpage"
+  # startpage:
+  #   build: "./startpage"
   micropuzzle:
     build: "./puzzle"
     ports:

@@ -1,4 +1,4 @@
-import { Component, Host, h, Prop, Element, Listen, State } from '@stencil/core';
+import { Component, Host, h, Prop, Element, Listen } from '@stencil/core';
 import { NewContentEventDetails, sleep } from '../../utils/utils';
 
 @Component({

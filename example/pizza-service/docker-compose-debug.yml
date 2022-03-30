@@ -19,6 +19,10 @@ services:
     build: "./footer"
     ports:
       - "3331:80"
+  header:
+    build: "./header"
+    ports:
+      - "3334:80"
   startpage:
     build: "./startpage"
     ports:
