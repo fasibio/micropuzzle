@@ -1,5 +1,5 @@
 import { Component, Host, h, Element, Event, EventEmitter, Prop, Listen } from '@stencil/core';
-import { NewContentEventDetails, NewFragmentPayload, LoadContentPayload } from '../../utils/utils';
+import { NewContentEventDetails, NewFragmentPayload, LoadContentPayload, PageDeclarations } from '../../utils/utils';
 
 @Component({
   tag: 'micro-puzzle-loader',
@@ -33,10 +33,29 @@ export class MicroPuzzleLoader {
    */
   @Prop() fallbacks: number;
 
+  /**
+   * Declarations of the pages
+   */
+  @Prop() pagesstr: string
+
   private waitingLoadings = 0;
   private asyncLoadingCount = 0;
   private socket: WebSocket;
   constructor() {
+    const page :PageDeclarations= JSON.parse(this.pagesstr) ;
+    window.onpopstate = ( event: PopStateEvent & {target: {location: {pathname: string}}}) => {
+      const currentPage = Object.values(page).find(onePage => {
+        return onePage.url === event.target.location.pathname;
+      });
+      Object.keys(currentPage.fragments).forEach(fragment => {
+        this.loadNewContent({detail: {
+          content: fragment,
+          loading: currentPage.fragments[fragment]
+        }} as any);
+      });
+    }
+    
+
     this.waitingLoadings = this.fallbacks;
     if (this.fallbacks > 0) {
       this.startSocketConnection();

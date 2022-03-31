@@ -10,6 +10,7 @@
 | Property             | Attribute            | Description                                      | Type     | Default     |
 | -------------------- | -------------------- | ------------------------------------------------ | -------- | ----------- |
 | `fallbacks`          | `fallbacks`          | The count of Fallbacks by initial loading        | `number` | `undefined` |
+| `pagesstr`           | `pagesstr`           | Declarations of the pages                        | `string` | `undefined` |
 | `streamingurl`       | `streamingurl`       | The URL where to connect the streamingconnection | `string` | `undefined` |
 | `streamregistername` | `streamregistername` | The UUID given by the Micropuzzle SSI side       | `string` | `undefined` |
 

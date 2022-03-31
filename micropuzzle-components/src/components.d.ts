@@ -19,6 +19,10 @@ export namespace Components {
          */
         "fallbacks": number;
         /**
+          * Declarations of the pages
+         */
+        "pagesstr": string;
+        /**
           * The URL where to connect the streamingconnection
          */
         "streamingurl": string;
@@ -62,6 +66,10 @@ declare namespace LocalJSX {
           * This is a internal micropuzzle event. If new Content is there to show it
          */
         "onNew-content"?: (event: CustomEvent<NewContentEventDetails>) => void;
+        /**
+          * Declarations of the pages
+         */
+        "pagesstr"?: string;
         /**
           * The URL where to connect the streamingconnection
          */

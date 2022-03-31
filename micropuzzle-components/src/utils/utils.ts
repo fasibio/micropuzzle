@@ -8,6 +8,7 @@ export type NewContentEventDetails = {
 export type LoadContentPayload = {
   content: string;
   loading: string;
+
 };
 
 export interface NewFragmentPayload {
@@ -15,6 +16,20 @@ export interface NewFragmentPayload {
   value: string;
   isFallback: boolean;
 }
+
+export interface PageDeclaration {
+  url: string, 
+  title: string,
+  fragments: {
+    [key: string]: string
+  }
+}
+
+export type PageDeclarations = {
+  [key: string]: PageDeclaration
+}
+
+
 
 export const sleep = (timeMs: number): Promise<unknown> => {
   return new Promise(resolve => {
