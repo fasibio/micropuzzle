@@ -209,3 +209,63 @@ func TestChangePathOfRessourcesCss(t *testing.T) {
 		})
 	}
 }
+
+func TestChangePathOfRessourcesJsModule(t *testing.T) {
+	type args struct {
+		js     string
+		prefix string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantRes string
+	}{
+		{
+			name: "no url to change in js",
+			args: args{
+				js:     "import { test } from './test';",
+				prefix: "mock",
+			},
+			wantRes: "import { test } from './test';",
+		},
+		{
+			name: "from: url to change in js (single quote)",
+			args: args{
+				js:     "import { test } from '/test';\nimport { test2 } from './test2';",
+				prefix: "mock",
+			},
+			wantRes: "import { test } from 'mock/test';\nimport { test2 } from './test2';",
+		},
+		{
+			name: "from: url to change in js (double quote)",
+			args: args{
+				js:     "import { test } from \"/test\"",
+				prefix: "mock",
+			},
+			wantRes: "import { test } from \"mock/test\"",
+		},
+		{
+			name: "import: url to change in js (double quote)",
+			args: args{
+				js:     "import \"/test\"",
+				prefix: "mock",
+			},
+			wantRes: "import \"mock/test\"",
+		},
+		{
+			name: "from: url to change in js (single quote)",
+			args: args{
+				js:     "import '/test'",
+				prefix: "mock",
+			},
+			wantRes: "import 'mock/test'",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if gotRes := ChangePathOfRessourcesJsModule(tt.args.js, tt.args.prefix); gotRes != tt.wantRes {
+				t.Errorf("ChangePathOfRessourcesJsModule() = %v, want %v", gotRes, tt.wantRes)
+			}
+		})
+	}
+}

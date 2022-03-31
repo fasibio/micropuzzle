@@ -12,6 +12,7 @@ import (
 
 	"github.com/fasibio/micropuzzle/configloader"
 	"github.com/fasibio/micropuzzle/logger"
+	"github.com/fasibio/micropuzzle/mimetypefinder"
 	"github.com/fasibio/micropuzzle/resultmanipulation"
 )
 
@@ -19,11 +20,11 @@ type HttpRegistration interface {
 	HandleFunc(pattern string, handlerFn http.HandlerFunc)
 }
 
-func RegisterReverseProxy(r HttpRegistration, frontends configloader.Frontends) {
+func RegisterReverseProxy(r HttpRegistration, frontends *configloader.Frontends) {
 
 	//TODO also add result by cache control to redis cache
 
-	for key, one := range frontends {
+	for key, one := range frontends.Definitions {
 		for oneK, oneV := range one {
 			prefix := ""
 			prefix = key + "."
@@ -97,6 +98,9 @@ func rewriteBodyHandler(prefix string) func(*http.Response) error {
 		resp.ContentLength = int64(len(res))
 
 		resp.Header.Set("Content-Length", strconv.Itoa(len(res)))
+		if resp.Header.Get("Content-Type") == "" {
+			resp.Header.Set("Content-Type", mimetypefinder.MimeTypeForFile(res))
+		}
 		return nil
 	}
 }

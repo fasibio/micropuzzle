@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
+	"text/template"
 
 	"encoding/json"
 	"fmt"
@@ -22,6 +24,7 @@ func (ru *runner) GenerateType(c *cli.Context) error {
 	destination := c.String(CliGenDestination)
 	sourceUrl := c.String(CliGenUrl)
 	var keyList []string
+	var pageList map[string]configloader.Page
 
 	if sourceUrl == "" {
 		frontends, err := configloader.LoadFrontends(c.String(CliMicrofrontends))
@@ -29,6 +32,7 @@ func (ru *runner) GenerateType(c *cli.Context) error {
 			return err
 		}
 		keyList = frontends.GetKeyList()
+		pageList = frontends.GetPagesList()
 	} else {
 		u, err := url.Parse(sourceUrl)
 		if err != nil {
@@ -45,7 +49,7 @@ func (ru *runner) GenerateType(c *cli.Context) error {
 		keyList = frontends.Frontends
 	}
 
-	destinationContent := getTypeScriptContent(keyList)
+	destinationContent, err := getTypeScriptContent(keyList, pageList)
 	if _, err := os.Stat(destination); os.IsNotExist(err) {
 		err := os.Mkdir(destination, os.ModeDir|0755)
 		if err != nil {
@@ -63,7 +67,7 @@ func (ru *runner) GenerateType(c *cli.Context) error {
 	return nil
 }
 
-func getTypeScriptContent(keyList []string) string {
+func getTypeScriptContent(keyList []string, pageList configloader.Pages) (string, error) {
 	destinationContent := `/**
  * Mircopuzzle AUTO-GENERATED CODE: PLEASE DO NOT MODIFY MANUALLY
  */
@@ -74,6 +78,41 @@ export enum MicropuzzleFrontends {
 		destinationContent += fmt.Sprintf("\t%s=\"%s\",\n", strings.ToUpper(strings.Replace(key, ".", "_", 1)), key)
 	}
 	destinationContent += "}\n\n"
+
+	pageD, err := getPageDeclation(pageList)
+	if err != nil {
+		return "", err
+	}
+	destinationContent += pageD
 	destinationContent += string(clientLibFile)
-	return destinationContent
+	return destinationContent, err
+}
+
+func getPageDeclation(pageList configloader.Pages) (string, error) {
+
+	templateDesign := `
+export type Page = {{.GetKeyType}};
+export const pageDeclarations: PageDeclarations = {
+  {{range $key, $value := .}}'{{$key}}': {
+    url: '{{$value.Url}}',
+    title: '{{$value.Title}}',
+    fragments: { {{range $key1, $value1 := $value.Fragments}}
+      '{{$key1}}': '{{$value1}}',{{end}}  
+    }
+  },
+{{end}}
+}
+`
+
+	t, err := template.New("pageDeclaration").Parse(templateDesign)
+	if err != nil {
+		return "", err
+	}
+	var tpl bytes.Buffer
+	err = t.Execute(&tpl, pageList)
+	if err != nil {
+		return "", err
+	}
+
+	return tpl.String(), nil
 }

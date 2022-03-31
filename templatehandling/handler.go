@@ -1,9 +1,11 @@
 package templatehandling
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
+	"github.com/fasibio/micropuzzle/configloader"
 	"github.com/fasibio/micropuzzle/proxy"
 	"github.com/gofrs/uuid"
 )
@@ -20,12 +22,14 @@ type FragmentHandling interface {
 type TemplateHandler struct {
 	socketUrl string
 	Reader    ReaderHandling
+	frontends configloader.Frontends
 }
 
-func NewTemplateHandler(r *http.Request, socketUrl string, id uuid.UUID, server FragmentHandling) (*TemplateHandler, error) {
+func NewTemplateHandler(r *http.Request, socketUrl string, id uuid.UUID, server FragmentHandling, frontends configloader.Frontends) (*TemplateHandler, error) {
 	return &TemplateHandler{
 		socketUrl: socketUrl,
-		Reader:    NewReader(server, r, id),
+		Reader:    NewReader(server, r, id, frontends),
+		frontends: frontends,
 	}, nil
 }
 
@@ -34,5 +38,6 @@ func (t *TemplateHandler) ScriptLoader() string {
 }
 
 func (t *TemplateHandler) Loader() string {
-	return fmt.Sprintf("<micro-puzzle-loader streamingUrl=\"%s\" streamRegisterName=\"%s\" fallbacks=\"%d\"></micro-puzzle-loader>", t.socketUrl, t.Reader.GetRequestId(), t.Reader.GetFallbacks())
+	pagesbytes, _ := json.Marshal(t.frontends.GetPagesList())
+	return fmt.Sprintf("<micro-puzzle-loader pagesStr='%s' streamingUrl=\"%s\" streamRegisterName=\"%s\" fallbacks=\"%d\"></micro-puzzle-loader>", string(pagesbytes), t.socketUrl, t.Reader.GetRequestId(), t.Reader.GetFallbacks())
 }

@@ -51,7 +51,9 @@ func (s *ReverseProxyTestSuite) TestRegisterReverseProxy() {
 		}))
 		backendURL, _ := url.Parse(backend.URL)
 		r := chi.NewRouter()
-		frontends := make(configloader.Frontends)
+		frontends := configloader.Frontends{
+			Definitions: make(map[string]map[string]configloader.Frontend),
+		}
 		homeChild := make(map[string]configloader.Frontend)
 		homeChild["start"] = configloader.Frontend{
 			Url: backendURL.String(),
@@ -61,9 +63,9 @@ func (s *ReverseProxyTestSuite) TestRegisterReverseProxy() {
 		globalChild["footer"] = configloader.Frontend{
 			Url: backendURL.String(),
 		}
-		frontends["global"] = globalChild
-		frontends["home"] = homeChild
-		RegisterReverseProxy(r, frontends)
+		frontends.Definitions["global"] = globalChild
+		frontends.Definitions["home"] = homeChild
+		RegisterReverseProxy(r, &frontends)
 		ts := httptest.NewServer(r)
 		defer ts.Close()
 		createdRoutes := r.Routes()

@@ -1,11 +1,11 @@
-package filehandler
+package mimetypefinder
 
 import (
 	"mime"
 	"path/filepath"
 )
 
-func mimeTypeForFile(file string) string {
+func MimeTypeForFile(file string) string {
 	ext := filepath.Ext(file)
 	switch ext {
 	case ".htm", ".html":

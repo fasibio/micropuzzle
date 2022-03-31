@@ -12,15 +12,18 @@ type LinkTag struct {
 	Type string
 }
 
-var jsFromRegexp *regexp.Regexp
+var jsFromDoubleSemicolonRegexp *regexp.Regexp
+var jsFromSingleSemicolonRegexp *regexp.Regexp
 var jsImportSingleQuotaRegex *regexp.Regexp
+
 var jsImportDoubleQuotaRegex *regexp.Regexp
 var cssUrlNoSemicolonRegex *regexp.Regexp
 var cssSingleSemicolonRegex *regexp.Regexp
 var cssDoubleSemicolonRegex *regexp.Regexp
 
 func init() {
-	jsFromRegexp = regexp.MustCompile(`from "/`)
+	jsFromDoubleSemicolonRegexp = regexp.MustCompile(`from "/`)
+	jsFromSingleSemicolonRegexp = regexp.MustCompile(`from '/`)
 	jsImportSingleQuotaRegex = regexp.MustCompile(`import '/`)
 	jsImportDoubleQuotaRegex = regexp.MustCompile(`import "/`)
 	cssUrlNoSemicolonRegex = regexp.MustCompile(`url\(/`)
@@ -41,13 +44,13 @@ var changeLinkTags = []LinkTag{
 	{Tag: "audio", Type: "src"},
 }
 
-func ChangePathOfRessourcesJsModule(js, prefix string) string {
-	res := string(jsFromRegexp.ReplaceAll([]byte(js), []byte(`from "`+prefix+`/`)))
+func ChangePathOfRessourcesJsModule(js, prefix string) (res string) {
+	res = js
+	res = string(jsFromSingleSemicolonRegexp.ReplaceAll([]byte(res), []byte(`from '`+prefix+`/`)))
+	res = string(jsFromDoubleSemicolonRegexp.ReplaceAll([]byte(res), []byte(`from "`+prefix+`/`)))
 	res = string(jsImportSingleQuotaRegex.ReplaceAll([]byte(res), []byte(`import '`+prefix+`/`)))
 	res = string(jsImportDoubleQuotaRegex.ReplaceAll([]byte(res), []byte(`import "`+prefix+`/`)))
-
-	return res
-
+	return
 }
 
 func ChangePathOfRessources(html, prefix string) (string, error) {
@@ -74,11 +77,12 @@ func ChangePathOfRessources(html, prefix string) (string, error) {
 	return doc.Html()
 }
 
-func ChangePathOfRessourcesCss(css, prefix string) string {
-	res := string(cssUrlNoSemicolonRegex.ReplaceAll([]byte(css), []byte("url("+prefix+"/")))
+func ChangePathOfRessourcesCss(css, prefix string) (res string) {
+	res = css
+	res = string(cssUrlNoSemicolonRegex.ReplaceAll([]byte(res), []byte("url("+prefix+"/")))
 	res = string(cssSingleSemicolonRegex.ReplaceAll([]byte(res), []byte("url('"+prefix+"/")))
 	res = string(cssDoubleSemicolonRegex.ReplaceAll([]byte(res), []byte("url(\""+prefix+"/")))
-	return res
+	return
 }
 
 func changeHtmlLink(s *goquery.Selection, prefix, tag string) {

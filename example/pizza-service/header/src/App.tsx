@@ -1,6 +1,6 @@
 
 import styled from 'styled-components'
-import { loadMicroFrontend, MicropuzzleFrontends } from './config/micro-puzzle-helper'
+import { pushToPage} from './config/micro-puzzle-helper'
 
 
 const Root = styled.div`
@@ -36,7 +36,7 @@ function App() {
     <FlexContainer>Pizza for everyone</FlexContainer>
     <FlexContainer>
       <CartButton title="Cart" onClick={() => {
-        loadMicroFrontend("content", MicropuzzleFrontends.CART_CONTENT)
+       pushToPage('cart')
       }}/>
     </FlexContainer>      
     </Root>

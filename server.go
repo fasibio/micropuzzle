@@ -71,11 +71,15 @@ func (ru *runner) Run(c *cli.Context) error {
 	}
 	fragmentHandler := fragments.NewFragmentHandler(cache, cache, c.Duration(CliTimeout), frontends, c.String(CliFallbackLoader))
 	fragmentHandler.RegisterHandler(r, SOCKET_PATH, SOCKET_ENDPOINT)
-	f := filehandler.NewFileHandler(&fragmentHandler, SOCKET_PATH)
+	f := filehandler.NewFileHandler(&fragmentHandler, SOCKET_PATH, *frontends)
 
 	r.Handle(LIB_ENDPOINT, http.FileServer(http.FS(embeddedLib)))
 	f.RegisterFileHandler(r, "/", http.Dir(c.String(CliPublicFolder)))
+	for _, v := range frontends.GetPagesList() {
+		r.Get(v.Url, func(w http.ResponseWriter, r *http.Request) {
 
+		})
+	}
 	logs.Infof("Start Server on Port :%s and Management on port %s", c.String(CliPort), c.String(CliManagementPort))
 	go ru.StartManagementEndpoint(c.String(CliManagementPort), frontends)
 	return http.ListenAndServe(fmt.Sprintf(":%s", c.String(CliPort)), r)
@@ -92,7 +96,7 @@ type HealthCheckObj struct {
 	ServiceName string `json:"service_name"`
 }
 
-func (r *runner) StartManagementEndpoint(port string, frontends configloader.Frontends) {
+func (r *runner) StartManagementEndpoint(port string, frontends *configloader.Frontends) {
 	managementR := chi.NewRouter()
 	managementR.Handle(METRICS_ENDPOINT, promhttp.Handler())
 	managementR.Get(HEALTH_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {
@@ -110,8 +114,25 @@ func (r *runner) StartManagementEndpoint(port string, frontends configloader.Fro
 		})
 	})
 
+	managementR.Get("/debug", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		res, err := getPageDeclation(frontends.GetPagesList())
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		w.Write([]byte(res))
+	})
+
 	managementR.Get(TYPE_GENERATION_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(getTypeScriptContent(frontends.GetKeyList())))
+		res, err := getTypeScriptContent(frontends.GetKeyList(), frontends.GetPagesList())
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		w.Write([]byte(res))
 	})
 
 	http.ListenAndServe(fmt.Sprintf(":%s", port), managementR)
