@@ -72,13 +72,13 @@ type fragmentHandler struct {
 	pubSub            cache.WebSocketBroadcast
 	proxy             ProxyHandling
 	timeout           time.Duration
-	destinations      *configloader.Frontends
+	destinations      *configloader.Configuration
 	fallbackLoaderKey string
 	user              map[string]WebSocketUser
 	allKnowUserIds    map[string]bool
 }
 
-func NewFragmentHandler(cache cache.CacheHandler, pubSub cache.WebSocketBroadcast, timeout time.Duration, destinations *configloader.Frontends, fallbackLoaderKey string) fragmentHandler {
+func NewFragmentHandler(cache cache.CacheHandler, pubSub cache.WebSocketBroadcast, timeout time.Duration, destinations *configloader.Configuration, fallbackLoaderKey string) fragmentHandler {
 	handler := fragmentHandler{
 		cache:             cache,
 		pubSub:            pubSub,

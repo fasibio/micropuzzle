@@ -20,7 +20,7 @@ type HttpRegistration interface {
 	HandleFunc(pattern string, handlerFn http.HandlerFunc)
 }
 
-func RegisterReverseProxy(r HttpRegistration, frontends *configloader.Frontends) {
+func RegisterReverseProxy(r HttpRegistration, frontends *configloader.Configuration) {
 
 	//TODO also add result by cache control to redis cache
 
@@ -36,12 +36,12 @@ func RegisterReverseProxy(r HttpRegistration, frontends *configloader.Frontends)
 	}
 }
 
-func registerMicrofrontendProxy(r HttpRegistration, name string, frontend configloader.Frontend) error {
+func registerMicrofrontendProxy(r HttpRegistration, name string, frontend configloader.Definition) error {
 	url, err := url.Parse(frontend.Url)
 	if err != nil {
 		return err
 	}
-	logger.Get().Infof("Register endpoint /%s/* for frontend %s with url: %s", name, name, url)
+	logger.Get().Infow("Register endpoint for reverseproxy", "path", fmt.Sprintf("/%s/*", name), "frontend", name, "frontend_url", url)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		path := strings.Replace(r.URL.String(), "/"+name, "", 1)
 		r.URL, err = url.Parse(path)
@@ -50,7 +50,7 @@ func registerMicrofrontendProxy(r HttpRegistration, name string, frontend config
 		p.ServeHTTP(w, r)
 	}
 	if frontend.GlobalOverride != "" {
-		logger.Get().Infof("Register GlobalOverride endpoint %s/* for frontend %s with url: %s", frontend.GlobalOverride, name, url)
+		logger.Get().Infow("Register GlobalOverride endpoint for frontend", "path", fmt.Sprintf("%s/*", frontend.GlobalOverride), "frontend", name, "frontend_url", url)
 		r.HandleFunc(fmt.Sprintf("%s/*", frontend.GlobalOverride), handler)
 	}
 	r.HandleFunc(fmt.Sprintf("/%s/*", name), handler)
@@ -83,16 +83,6 @@ func rewriteBodyHandler(prefix string) func(*http.Response) error {
 				return err
 			}
 		}
-		//  else if strings.Contains(resp.Header.Get("Content-Type"), "text/css") {
-		// 	res = resultmanipulation.ChangePathOfRessourcesCss(string(b), prefix)
-		// } else if strings.Contains(resp.Header.Get("Content-Type"), "application/javascript") {
-		// 	res = resultmanipulation.ChangePathOfRessourcesJsModule(string(b), prefix)
-		// 	res = resultmanipulation.ChangePathOfRessourcesCss(res, prefix)
-		// 	// res = string(b)
-		// } else {
-		// 	res = string(b)
-		// }
-
 		body := ioutil.NopCloser(bytes.NewReader([]byte(res)))
 		resp.Body = body
 		resp.ContentLength = int64(len(res))

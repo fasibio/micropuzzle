@@ -22,13 +22,13 @@ type FragmentHandling interface {
 type TemplateHandler struct {
 	socketUrl string
 	Reader    ReaderHandling
-	frontends configloader.Frontends
+	frontends configloader.Configuration
 }
 
-func NewTemplateHandler(r *http.Request, socketUrl string, id uuid.UUID, server FragmentHandling, frontends configloader.Frontends) (*TemplateHandler, error) {
+func NewTemplateHandler(r *http.Request, socketUrl string, id uuid.UUID, server FragmentHandling, frontends configloader.Configuration, page configloader.Page) (*TemplateHandler, error) {
 	return &TemplateHandler{
 		socketUrl: socketUrl,
-		Reader:    NewReader(server, r, id, frontends),
+		Reader:    NewReader(server, r, id, frontends, page),
 		frontends: frontends,
 	}, nil
 }

@@ -1,13 +1,34 @@
-global:
-  footer:
-    url: http://localhost:5000
-  fallback:
-    url: http://localhost:3300/loader.html
-startpage:
-  content:
-    url: http://localhost:5001
-  left:
-    url: http://localhost:5003
-about:
-  content:
-    url: http://localhost:5002
+version: 1
+
+
+definitions: 
+  global:
+    footer:
+      url: http://localhost:5000
+    fallback:
+      url: http://localhost:3300/loader.html
+  startpage:
+    content:
+      url: http://localhost:5001
+    left:
+      url: http://localhost:5003
+  about:
+    content:
+      url: http://localhost:5002
+
+pages: 
+  global: 
+    fragments:
+      header: global.header
+      footer: global.footer
+    template: ./index.html
+  start: 
+    url: "/"
+    title: ""
+    fragments: 
+      content: startpage.content
+  about: 
+    url: "/about.html"
+    title: "about"
+    fragments: 
+      content: about.content

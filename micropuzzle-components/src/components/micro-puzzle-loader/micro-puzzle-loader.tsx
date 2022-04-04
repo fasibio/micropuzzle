@@ -69,7 +69,7 @@ export class MicroPuzzleLoader {
       new_uri = 'wss:';
     }
     new_uri += '//' + loc.host;
-    new_uri += loc.pathname + this.streamingurl;
+    new_uri += '/' + this.streamingurl;
     return new_uri;
   }
 

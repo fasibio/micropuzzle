@@ -43,5 +43,5 @@ func TestTemplateHandler_Loader(t *testing.T) {
 		socketUrl: "socket_url",
 		Reader:    readerMock,
 	}
-	assert.Equal(t, handler.Loader(), "<micro-puzzle-loader streamingUrl=\"socket_url\" streamRegisterName=\""+id.String()+"\" fallbacks=\"0\"></micro-puzzle-loader>")
+	assert.Equal(t, handler.Loader(), "<micro-puzzle-loader pagesStr='{}' streamingUrl=\"socket_url\" streamRegisterName=\""+id.String()+"\" fallbacks=\"0\"></micro-puzzle-loader>")
 }

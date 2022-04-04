@@ -2,14 +2,27 @@ version: "3.2"
 services:
   redis:
     image: redis
-  # detailpage:
-  #   build: "../detailpage"
+  redis-commander:
+    container_name: redis-commander
+    hostname: redis-commander
+    image: rediscommander/redis-commander:latest
+    restart: always
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8089:8081"
   footer:
     build: "./footer"
   header:
     build: "./header"
   # startpage:
   #   build: "./startpage"
+  cart:
+    build: "./cart"
+  about: 
+    build: "./about"
   micropuzzle:
     build: "./puzzle"
     ports:

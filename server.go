@@ -51,7 +51,7 @@ func (ru *runner) Run(c *cli.Context) error {
 		return err
 	}
 	r := chi.NewRouter()
-	frontends, err := configloader.LoadFrontends(c.String(CliMicrofrontends))
+	frontends, err := configloader.LoadConfig(c.String(CliMicrofrontends))
 	if err != nil {
 		return err
 	}
@@ -74,11 +74,9 @@ func (ru *runner) Run(c *cli.Context) error {
 	f := filehandler.NewFileHandler(&fragmentHandler, SOCKET_PATH, *frontends)
 
 	r.Handle(LIB_ENDPOINT, http.FileServer(http.FS(embeddedLib)))
-	f.RegisterFileHandler(r, "/", http.Dir(c.String(CliPublicFolder)))
+	f.RegisterFileHandler(r, http.Dir(c.String(CliPublicFolder)))
 	for _, v := range frontends.GetPagesList() {
-		r.Get(v.Url, func(w http.ResponseWriter, r *http.Request) {
-
-		})
+		f.HandlePage(r, v, http.Dir(c.String(CliPublicFolder)))
 	}
 	logs.Infof("Start Server on Port :%s and Management on port %s", c.String(CliPort), c.String(CliManagementPort))
 	go ru.StartManagementEndpoint(c.String(CliManagementPort), frontends)
@@ -96,7 +94,7 @@ type HealthCheckObj struct {
 	ServiceName string `json:"service_name"`
 }
 
-func (r *runner) StartManagementEndpoint(port string, frontends *configloader.Frontends) {
+func (r *runner) StartManagementEndpoint(port string, frontends *configloader.Configuration) {
 	managementR := chi.NewRouter()
 	managementR.Handle(METRICS_ENDPOINT, promhttp.Handler())
 	managementR.Get(HEALTH_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {

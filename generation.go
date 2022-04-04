@@ -27,7 +27,7 @@ func (ru *runner) GenerateType(c *cli.Context) error {
 	var pageList map[string]configloader.Page
 
 	if sourceUrl == "" {
-		frontends, err := configloader.LoadFrontends(c.String(CliMicrofrontends))
+		frontends, err := configloader.LoadConfig(c.String(CliMicrofrontends))
 		if err != nil {
 			return err
 		}

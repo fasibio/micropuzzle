@@ -51,16 +51,16 @@ func (s *ReverseProxyTestSuite) TestRegisterReverseProxy() {
 		}))
 		backendURL, _ := url.Parse(backend.URL)
 		r := chi.NewRouter()
-		frontends := configloader.Frontends{
-			Definitions: make(map[string]map[string]configloader.Frontend),
+		frontends := configloader.Configuration{
+			Definitions: make(map[string]map[string]configloader.Definition),
 		}
-		homeChild := make(map[string]configloader.Frontend)
-		homeChild["start"] = configloader.Frontend{
+		homeChild := make(map[string]configloader.Definition)
+		homeChild["start"] = configloader.Definition{
 			Url: backendURL.String(),
 		}
 
-		globalChild := make(map[string]configloader.Frontend)
-		globalChild["footer"] = configloader.Frontend{
+		globalChild := make(map[string]configloader.Definition)
+		globalChild["footer"] = configloader.Definition{
 			Url: backendURL.String(),
 		}
 		frontends.Definitions["global"] = globalChild

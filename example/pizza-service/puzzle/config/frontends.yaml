@@ -1,13 +1,43 @@
-global:
-  footer:
-    url: http://footer
-  header: 
-    url: http://header
-  fallback:
-    url: http://localhost:3300/loader.html
-startpage:
-  content:
-    url: http://startpage
-detail:
-  content:
-    url: http://detailpage
+version: 1
+
+definitions: 
+  global:
+    footer:
+      url: http://footer
+    header: 
+      url: http://header
+    fallback:
+      url: http://localhost:3300/loader.html
+  startpage:
+    content:
+      url: http://startpage
+  detail:
+    content:
+      url: http://detailpage
+  cart: 
+    content: 
+      url: http://localhost:3333
+  about: 
+    content: 
+      url: http://localhost:3335
+pages: 
+  global: 
+    fragments:
+      header: global.header
+      footer: global.footer
+    template: ./index.html
+  start: 
+    url: "/"
+    title: ""
+    fragments: 
+      content: startpage.content
+  cart: 
+    url: "/cart.html"
+    title: "Cart"
+    fragments: 
+      content: cart.content
+  about: 
+    url: "/about.html"
+    title: "about"
+    fragments: 
+      content: about.content

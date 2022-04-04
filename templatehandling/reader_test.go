@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/fasibio/micropuzzle/configloader"
 	"github.com/fasibio/micropuzzle/proxy"
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
@@ -58,42 +59,38 @@ func TestReaderTestSuit(t *testing.T) {
 }
 
 func (s ReaderTestSuite) TestReader_Load() {
-	frontend := "frontend"
-	fragmentName := "fragmentName"
 	remoteAddr := "remoteAddr"
 	httpHeaderMock := http.Header{
 		"User-Agent": []string{"userAgent"},
 	}
+	area := "header"
 	id := uuid.Must(uuid.NewV4())
-
 	s.Run("Happy Path", func() {
 		mockObj := new(MockedFragmentHandler)
-		mockObj.On("LoadFragment", frontend, fragmentName, id.String(), remoteAddr, httpHeaderMock).Return("result", proxy.CacheInformation{}, false)
+		mockObj.On("LoadFragment", "global.header", area, id.String(), remoteAddr, httpHeaderMock).Return("result", proxy.CacheInformation{}, false)
 		reader := NewReader(mockObj, &http.Request{
 			RemoteAddr: remoteAddr,
 			Header:     httpHeaderMock,
-		}, id)
-
-		result := reader.Load(frontend, fragmentName)
-		assert.Equal(s.T(), result, "<micro-puzzle-element name=\"fragmentName\"><template>result</template></micro-puzzle-element>")
+		}, id, configloader.Configuration{
+			Definitions: map[string]map[string]configloader.Definition{"global": {"header": configloader.Definition{Url: "mockurl"}}},
+		}, configloader.Page{Url: "/", Fragments: map[string]string{"header": "global.header"}})
+		result := reader.Load(area)
+		assert.Equal(s.T(), result, "<micro-puzzle-element name=\"header\"><template>result</template></micro-puzzle-element>")
 		mockObj.AssertExpectations(s.T())
 	})
+
 	s.Run("Loading need To long so fallback will be returned", func() {
 		mockObj := new(MockedFragmentHandler)
-		mockObj.On("LoadFragment", frontend, fragmentName, id.String(), remoteAddr, httpHeaderMock).Return("fallbackhtml", proxy.CacheInformation{}, true)
-		reader := reader{
-			server:    mockObj,
-			requestId: id,
-			fallbacks: 0,
-			mainRequest: &http.Request{
-				RemoteAddr: remoteAddr,
-				Header:     httpHeaderMock,
-			},
-		}
-		result := reader.Load(frontend, fragmentName)
-		assert.Equal(s.T(), result, "<micro-puzzle-element name=\"fragmentName\"><template>fallbackhtml</template></micro-puzzle-element>")
+		mockObj.On("LoadFragment", "global.header", area, id.String(), remoteAddr, httpHeaderMock).Return("fallback", proxy.CacheInformation{}, true)
+		reader := NewReader(mockObj, &http.Request{
+			RemoteAddr: remoteAddr,
+			Header:     httpHeaderMock,
+		}, id, configloader.Configuration{
+			Definitions: map[string]map[string]configloader.Definition{"global": {"header": configloader.Definition{Url: "mockurl"}}},
+		}, configloader.Page{Url: "/", Fragments: map[string]string{"header": "global.header"}})
+		result := reader.Load(area)
+		assert.Equal(s.T(), result, "<micro-puzzle-element name=\"header\"><template>fallback</template></micro-puzzle-element>")
 		mockObj.AssertExpectations(s.T())
-		assert.Equal(s.T(), reader.fallbacks, int64(1))
+		s.Assert().Equal(reader.fallbacks, int64(1))
 	})
-
 }

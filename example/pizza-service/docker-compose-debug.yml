@@ -31,3 +31,7 @@ services:
     build: "./cart"
     ports:
       - "3333:80"
+  about: 
+    build: "./about"
+    ports:
+      - "3335:6500"

@@ -1,3 +1,5 @@
+version: 1
+
 definitions: 
   global:
     footer:
@@ -16,12 +18,15 @@ definitions:
   cart: 
     content: 
       url: http://localhost:3333
-
+  about: 
+    content: 
+      url: http://localhost:3335
 pages: 
   global: 
     fragments:
       header: global.header
       footer: global.footer
+    template: ./index.html
   start: 
     url: "/"
     title: ""
@@ -32,4 +37,8 @@ pages:
     title: "Cart"
     fragments: 
       content: cart.content
-    
+  about: 
+    url: "/about.html"
+    title: "about"
+    fragments: 
+      content: about.content
