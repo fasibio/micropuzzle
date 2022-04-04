@@ -10,6 +10,10 @@ services:
     build: "./header"
   startpage:
     build: "./startpage"
+  cart:
+    build: "./cart"
+  about: 
+    build: "./about"
   micropuzzle:
     build: "./puzzle"
     ports:
@@ -17,5 +21,6 @@ services:
       - "3301:3301" # Management port
     environment:
       - REDISADDR=redis:6379
+       - MICROFRONTENDS=/config/frontends.yaml
     volumes:
       - "./puzzle/config:/config"

@@ -18,7 +18,7 @@ func init() {
 }
 
 type Configuration struct {
-	Version     int                              `yaml:"version" validate:"required"`
+	Version     string                           `yaml:"version" validate:"required"`
 	Definitions map[string]map[string]Definition `yaml:"definitions" validate:"required"`
 	Pages       Pages                            `yaml:"pages" validate:"required"`
 }

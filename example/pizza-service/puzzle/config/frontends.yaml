@@ -1,4 +1,4 @@
-version: 1
+version: "1"
 
 definitions: 
   global:
@@ -16,10 +16,10 @@ definitions:
       url: http://detailpage
   cart: 
     content: 
-      url: http://localhost:3333
+      url: http://cart
   about: 
     content: 
-      url: http://localhost:3335
+      url: http://about
 pages: 
   global: 
     fragments:
