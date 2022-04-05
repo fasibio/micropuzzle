@@ -10,11 +10,17 @@ definitions:
       url: http://localhost:3300/loader.html
   startpage:
     content:
-      url: http://localhost:3000
-      globalOverride: /src
+      url: http://startpage
   detail:
     content:
-      url: http://detailpage
+      url: http://dockerhost:3000
+      globalOverride: /src
+  cart: 
+    content: 
+      url: http://cart
+  about: 
+    content: 
+      url: http://about:6500
 
 pages: 
   global: 
@@ -37,3 +43,8 @@ pages:
     title: "about"
     fragments: 
       content: about.content
+  detail: 
+    url: "/detail.html"
+    title: "detail"
+    fragments: 
+      content: detail.content

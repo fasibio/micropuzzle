@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import styled from 'styled-components'
+import { pushToPage } from './config/micro-puzzle-helper'
 
 const Root = styled.div`
   height: 80vh;
@@ -53,7 +54,7 @@ function App() {
       <Root>
         <Header>
         <h1>
-          We have the best pizza at net
+          We have the best pizza at net 
         </h1>
         </Header>
         <Content>
@@ -61,7 +62,11 @@ function App() {
           <List>
             {items.map((item, index) => (
               <Item onClick={() => {
-                
+                console.log('hier')
+                pushToPage(`detail`,{
+                  id: `${index}`,
+                  title: "blabla"
+                })
               }} key={index}>
                 <h3>{item}</h3>
               </Item>

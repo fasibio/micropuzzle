@@ -29,6 +29,8 @@ export function registerCustomElement<P extends BaseProps>({
 
         constructor() {
             super()
+            const t = "abcd"
+            console.log(t)
             this.styleHost = document.createElement('div')
             this.mountPoint = document.createElement('div')
             this.attachShadow({ mode: 'open' })
@@ -62,7 +64,9 @@ export function registerCustomElement<P extends BaseProps>({
             }
         }
     }
+    console.log('is registered',!customElements.get(name))
     if (!customElements.get(name)){
+        console.log('register')
         customElements.define(name, webComponentClass)
     }
 }

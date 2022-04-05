@@ -1,5 +1,10 @@
 version: "3.2"
 services:
+  dockerhost:
+    image: qoomon/docker-host
+    cap_add: [ 'NET_ADMIN', 'NET_RAW' ]
+    mem_limit: 8M
+    restart: on-failure
   redis:
     image: redis
   redis-commander:
@@ -17,12 +22,14 @@ services:
     build: "./footer"
   header:
     build: "./header"
-  # startpage:
-  #   build: "./startpage"
+  startpage:
+    build: "./startpage"
   cart:
     build: "./cart"
   about: 
     build: "./about"
+  detailpage:
+    build: "./detailpage"
   micropuzzle:
     build: "./puzzle"
     ports:
@@ -33,8 +40,3 @@ services:
       - MICROFRONTENDS=./config/frontends-dev.yaml
     volumes:
       - "./puzzle/config:/config"
-  dockerhost:
-    image: qoomon/docker-host
-    cap_add: [ 'NET_ADMIN', 'NET_RAW' ]
-    mem_limit: 8M
-    restart: on-failure

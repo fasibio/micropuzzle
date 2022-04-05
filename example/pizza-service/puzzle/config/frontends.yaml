@@ -19,7 +19,7 @@ definitions:
       url: http://cart
   about: 
     content: 
-      url: http://about
+      url: http://about:6500
 pages: 
   global: 
     fragments:
@@ -41,3 +41,8 @@ pages:
     title: "about"
     fragments: 
       content: about.content
+  detail: 
+    url: "/detail.html"
+    title: "detail"
+    fragments: 
+      content: detail.content

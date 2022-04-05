@@ -2,6 +2,17 @@ version: "3.2"
 services:
   redis:
     image: redis
+  redis-commander:
+    container_name: redis-commander
+    hostname: redis-commander
+    image: rediscommander/redis-commander:latest
+    restart: always
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8089:8081"
   # detailpage:
   #   build: "../detailpage"
   footer:
@@ -14,6 +25,8 @@ services:
     build: "./cart"
   about: 
     build: "./about"
+  detailpage:
+    build: "./detailpage"
   micropuzzle:
     build: "./puzzle"
     ports:
@@ -21,6 +34,6 @@ services:
       - "3301:3301" # Management port
     environment:
       - REDISADDR=redis:6379
-       - MICROFRONTENDS=/config/frontends.yaml
+      - MICROFRONTENDS=/config/frontends.yaml
     volumes:
       - "./puzzle/config:/config"

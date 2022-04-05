@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "genTypes": "curl http://localhost:3301/micro-puzzle-helper.ts > src/config/micro-puzzle-helper.ts"
+
   },
   "dependencies": {
     "react": "^17.0.2",
