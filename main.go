@@ -12,7 +12,7 @@ import (
 const (
 	CliFallbackLoader = "fallbackloader"
 	CliMicrofrontends = "microfrontends"
-	CliPublicFolder   = "publicfoder"
+	CliPublicFolder   = "publicfolder"
 	CliTimeout        = "timeoutms"
 	CliLogLevel       = "logLevel"
 	CliPort           = "port"
